@@ -12,9 +12,14 @@ const swaggerOptions = {
       version: '1.0.0',
       description: 'API documentation for Epika Social backend',
     },
-    servers: [{ url: 'http://localhost:3000' }],
+    servers: [
+      {
+        // Prefer explicit BASE_URL, then VERCEL_URL, otherwise fall back to localhost
+        url: process.env.BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
+      },
+    ],
   },
-  apis: ['./src/routes/*.js', './src/controllers/*.js'],
+  apis: ['./src/routes/*.js', './src/controllers/*.js', './src/models/*.js', './src/services/*.js'],
 };
 
 const specs = swaggerJsdoc(swaggerOptions);
