@@ -53,7 +53,7 @@ if (!global.__EPIKA_SEQUELIZE__) global.__EPIKA_SEQUELIZE__ = sequelize;
 let connectPromise = global.__EPIKA_CONNECT__ || null;
 
 async function ensureDatabaseExists() {
-  if (process.env.NODE_ENV === 'production') return;
+  if (process.env.NODE_ENV === 'Production') return;
 
   const pool = mariadb.createPool({
     host: dbHost,
