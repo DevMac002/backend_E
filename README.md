@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Epika Social Backend
 
 Backend Node.js/Express.js pour l’application sociale chrétienne Epika Social, avec Socket.IO, MariaDB via Sequelize, JWT, uploads locaux et logique métier de rôles/admin.
@@ -447,3 +448,6 @@ Les variables de collection suivantes sont prévues :
 ## 14. Notes
 
 Ce backend est pensé pour évoluer facilement vers un front-end mobile/web. Les couches sont séparées en routes, contrôleurs, services, modèles et middlewares pour faciliter la maintenance.
+=======
+# backend_E
+>>>>>>> ba410c4bda52ade376773fe571c48867db1d9669
