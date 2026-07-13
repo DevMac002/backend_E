@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const postRoutes = require('./routes/post.routes');
@@ -18,6 +17,10 @@ const dbMiddleware = require('./middlewares/db.middleware');
 
 const app = express();
 
+// Nécessaire car Vercel fait tourner l'app derrière un proxy :
+// sans ça, express-rate-limit rejette le header X-Forwarded-For et crash (502)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '4mb' }));
@@ -30,7 +33,6 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use(generalLimiter);
-
 app.use(dbMiddleware);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'epika-social' }));
