@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const { User, RoleChangeLog, RewardHistory, Op } = require('../models');
 const { saveUploadedFile } = require('../utils/file');
+const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 
 async function getMe(req, res) {
@@ -52,7 +53,7 @@ async function getUserById(req, res) {
 async function uploadAvatar(req, res) {
   try {
     if (!req.file) return res.status(400).json({ message: 'Aucun fichier fourni' });
-    const avatarPath = await saveUploadedFile(req.file);
+    const avatarPath = await saveUploadedFile(req.file, req.user.id, 'avatar');
     await req.user.update({ avatar_path: avatarPath });
     res.json({ avatar_path: avatarPath });
   } catch (error) {
@@ -82,6 +83,9 @@ async function updateUserRole(req, res) {
   const previousStatus = targetUser.status;
   await targetUser.update({ role: req.body.role || targetUser.role, status: req.body.status || targetUser.status });
   await RoleChangeLog.create({ user_id: targetUser.id, ancien_role: previousRole, nouveau_role: targetUser.role, ancien_statut: previousStatus, nouveau_statut: targetUser.status, changed_by: req.user.id });
+  if (isRealtimeEnabled) {
+    await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:role_updated', { userId: targetUser.id, role: targetUser.role, status: targetUser.status });
+  }
   res.json(targetUser);
 }
 
@@ -93,6 +97,9 @@ async function updateUserStatus(req, res) {
   const previousStatus = targetUser.status;
   await targetUser.update({ status: req.body.status || targetUser.status });
   await RoleChangeLog.create({ user_id: targetUser.id, ancien_role: previousRole, nouveau_role: targetUser.role, ancien_statut: previousStatus, nouveau_statut: targetUser.status, changed_by: req.user.id });
+  if (isRealtimeEnabled) {
+    await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:status_updated', { userId: targetUser.id, status: targetUser.status });
+  }
   res.json(targetUser);
 }
 
@@ -101,6 +108,9 @@ async function banUser(req, res) {
   const targetUser = await User.findByPk(req.params.id);
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
   await targetUser.update({ is_banned: req.body.ban !== false });
+  if (isRealtimeEnabled) {
+    await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:ban_updated', { userId: targetUser.id, banned: targetUser.is_banned });
+  }
   res.json({ message: targetUser.is_banned ? 'Utilisateur banni' : 'Utilisateur débanni' });
 }
 

@@ -1,0 +1,49 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
+const postRoutes = require('./routes/post.routes');
+const groupRoutes = require('./routes/group.routes');
+const messageRoutes = require('./routes/message.routes');
+const notificationRoutes = require('./routes/notification.routes');
+const searchRoutes = require('./routes/search.routes');
+const adminRoutes = require('./routes/admin.routes');
+const mediaRoutes = require('./routes/media.routes');
+const swaggerRoutes = require('./routes/swagger.routes');
+const dbMiddleware = require('./middlewares/db.middleware');
+
+const app = express();
+
+app.use(helmet());
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '4mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(generalLimiter);
+
+app.use(dbMiddleware);
+
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'epika-social' }));
+
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/posts', postRoutes);
+app.use('/groups', groupRoutes);
+app.use('/messages', messageRoutes);
+app.use('/notifications', notificationRoutes);
+app.use('/search', searchRoutes);
+app.use('/admin', adminRoutes);
+app.use('/media', mediaRoutes);
+app.use('/docs', swaggerRoutes);
+
+module.exports = { app };

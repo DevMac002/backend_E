@@ -11,6 +11,7 @@ const Like = require('./Like');
 const Comment = require('./Comment');
 const Notification = require('./Notification');
 const QuizAnswer = require('./QuizAnswer');
+const Media = require('./Media');
 
 User.hasMany(Post, { foreignKey: 'author_id' });
 Post.belongsTo(User, { foreignKey: 'author_id' });
@@ -63,6 +64,9 @@ Post.hasMany(QuizAnswer, { foreignKey: 'post_id' });
 QuizAnswer.belongsTo(User, { foreignKey: 'user_id' });
 QuizAnswer.belongsTo(Post, { foreignKey: 'post_id' });
 
+User.hasMany(Media, { foreignKey: 'owner_id' });
+Media.belongsTo(User, { foreignKey: 'owner_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -77,4 +81,5 @@ module.exports = {
   Comment,
   Notification,
   QuizAnswer,
+  Media,
 };

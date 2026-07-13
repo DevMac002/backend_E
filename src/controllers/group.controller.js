@@ -1,4 +1,5 @@
 const { Group, GroupMember, User, Notification, Op } = require('../models');
+const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 
 async function listGroups(req, res) {
@@ -62,6 +63,9 @@ async function addMember(req, res) {
   if (!group) return res.status(404).json({ message: 'Groupe introuvable' });
   const member = await GroupMember.create({ group_id: group.id, user_id: req.body.user_id, role_in_group: req.body.role_in_group || 'membre' });
   await Notification.create({ user_id: req.body.user_id, type: 'group_join', message: `Vous avez été ajouté au groupe ${group.nom}`, payload: { groupId: group.id } });
+  if (isRealtimeEnabled) {
+    await triggerRealtimeEvent(`private-user-${req.body.user_id}`, 'group:member_added', { groupId: group.id, groupName: group.nom });
+  }
   res.status(201).json(member);
 }
 

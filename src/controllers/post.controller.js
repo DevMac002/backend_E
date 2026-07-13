@@ -1,6 +1,6 @@
 const { Post, PollVote, User, Like, Comment, QuizAnswer, Notification, Op } = require('../models');
 const { saveUploadedFile } = require('../utils/file');
-const upload = require('../middlewares/upload.middleware');
+const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 
 async function listPosts(req, res) {
@@ -32,8 +32,13 @@ async function createPost(req, res) {
       return res.status(403).json({ message: 'Seuls les admins peuvent créer ce type de post' });
     }
     let media_path = null;
-    if (req.file) media_path = await saveUploadedFile(req.file);
+    if (req.file) {
+      media_path = await saveUploadedFile(req.file, req.user.id, 'post');
+    }
     const post = await Post.create({ author_id: req.user.id, content, media_path, type, visible_to, options: options || null, reponse_correcte: reponse_correcte || null, date_limite: date_limite || null });
+    if (isRealtimeEnabled) {
+      await triggerRealtimeEvent('public', 'post:new', { postId: post.id, authorId: req.user.id, type: post.type });
+    }
     res.status(201).json(post);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur' });
@@ -87,6 +92,9 @@ async function likePost(req, res) {
   if (existing) return res.status(409).json({ message: 'Vous avez déjà liké ce post' });
   await Like.create({ user_id: req.user.id, post_id: post.id });
   await Notification.create({ user_id: post.author_id, type: 'like', message: `${req.user.username} a aimé votre publication`, payload: { postId: post.id } });
+  if (isRealtimeEnabled) {
+    await triggerRealtimeEvent(`private-user-${post.author_id}`, 'notification:new', { type: 'like', postId: post.id });
+  }
   res.json({ message: 'Post liké' });
 }
 
@@ -112,6 +120,9 @@ async function addComment(req, res) {
   if (!post) return res.status(404).json({ message: 'Post introuvable' });
   const comment = await Comment.create({ post_id: post.id, author_id: req.user.id, content: req.body.content });
   await Notification.create({ user_id: post.author_id, type: 'comment', message: `${req.user.username} a commenté votre publication`, payload: { postId: post.id } });
+  if (isRealtimeEnabled) {
+    await triggerRealtimeEvent(`private-user-${post.author_id}`, 'notification:new', { type: 'comment', postId: post.id });
+  }
   res.status(201).json(comment);
 }
 

@@ -8,33 +8,53 @@ const dbName = process.env.DB_NAME;
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASSWORD;
 
-const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
-  host: dbHost,
-  port: dbPort,
-  dialect: process.env.DB_DIALECT || 'mariadb',
-  logging: false,
-  dialectOptions: {
-    connectTimeout: 60000,
-    acquireTimeout: 60000,
-    timeout: 60000,
-    allowPublicKeyRetrieval: true,
-    ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false, require: true } } : {}),
-  },
-  define: {
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-    underscored: true,
-  },
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-});
+const poolOptions = {
+  max: Number(process.env.DB_POOL_MAX || 5),
+  min: Number(process.env.DB_POOL_MIN || 0),
+  acquire: Number(process.env.DB_POOL_ACQUIRE || 30000),
+  idle: Number(process.env.DB_POOL_IDLE || 10000),
+};
+
+const sslOptions = process.env.DB_SSL === 'true'
+  ? {
+      ssl: {
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+        require: true,
+      },
+    }
+  : {};
+
+function createSequelizeInstance() {
+  return new Sequelize(dbName, dbUser, dbPassword, {
+    host: dbHost,
+    port: dbPort,
+    dialect: process.env.DB_DIALECT || 'mariadb',
+    logging: false,
+    dialectOptions: {
+      connectTimeout: 60000,
+      acquireTimeout: 60000,
+      timeout: 60000,
+      allowPublicKeyRetrieval: true,
+      ...sslOptions,
+    },
+    define: {
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      underscored: true,
+    },
+    pool: poolOptions,
+  });
+}
+
+const sequelize = global.__EPIKA_SEQUELIZE__ || createSequelizeInstance();
+if (!global.__EPIKA_SEQUELIZE__) global.__EPIKA_SEQUELIZE__ = sequelize;
+
+let connectPromise = global.__EPIKA_CONNECT__ || null;
 
 async function ensureDatabaseExists() {
+  if (process.env.NODE_ENV === 'production') return;
+
   const pool = mariadb.createPool({
     host: dbHost,
     port: dbPort,
@@ -43,7 +63,7 @@ async function ensureDatabaseExists() {
     database: 'mysql',
     connectTimeout: 60000,
     socketTimeout: 60000,
-    ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false, require: true } } : {}),
+    ...sslOptions,
   });
 
   try {
@@ -57,6 +77,8 @@ async function ensureDatabaseExists() {
 }
 
 async function ensureUserVerificationColumns() {
+  if (process.env.NODE_ENV === 'production') return;
+
   const pool = mariadb.createPool({
     host: dbHost,
     port: dbPort,
@@ -65,7 +87,7 @@ async function ensureUserVerificationColumns() {
     database: dbName,
     connectTimeout: 60000,
     socketTimeout: 60000,
-    ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false, require: true } } : {}),
+    ...sslOptions,
   });
 
   try {
@@ -89,6 +111,8 @@ async function ensureUserVerificationColumns() {
 }
 
 async function bootstrapDefaultAdmin() {
+  if (process.env.NODE_ENV === 'production') return;
+
   const User = require('../models/User');
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@epika.local';
   const adminUsername = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
@@ -114,18 +138,27 @@ async function bootstrapDefaultAdmin() {
 }
 
 async function connectDB() {
-  try {
-    await ensureDatabaseExists();
-    await ensureUserVerificationColumns();
-    await sequelize.authenticate();
-    console.log('MariaDB connection established successfully.');
-    await sequelize.sync({ alter: true });
-    console.log('Database synchronized.');
-    await bootstrapDefaultAdmin();
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-    process.exit(1);
+  if (!connectPromise) {
+    connectPromise = (async () => {
+      try {
+        await ensureDatabaseExists();
+        await ensureUserVerificationColumns();
+        await sequelize.authenticate();
+        console.log('MariaDB connection established successfully.');
+        if (process.env.NODE_ENV !== 'production') {
+          await sequelize.sync({ alter: true });
+          console.log('Database synchronized.');
+          await bootstrapDefaultAdmin();
+        }
+        return sequelize;
+      } catch (error) {
+        console.error('Unable to connect to the database:', error);
+        throw error;
+      }
+    })();
+    global.__EPIKA_CONNECT__ = connectPromise;
   }
+  return connectPromise;
 }
 
 module.exports = { sequelize, connectDB };

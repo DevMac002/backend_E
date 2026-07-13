@@ -1,26 +1,35 @@
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const sharp = require('sharp');
+const { Media } = require('../models');
 
-const uploadDir = path.join(__dirname, '../../uploads');
+const MAX_UPLOAD_SIZE_BYTES = 4 * 1024 * 1024;
 
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-async function saveUploadedFile(file) {
-  const ext = path.extname(file.originalname).toLowerCase();
-  const name = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
-  const target = path.join(uploadDir, name);
-
-  if (file.mimetype.startsWith('image/')) {
-    await sharp(file.buffer).resize({ width: 1200 }).jpeg({ quality: 80 }).toFile(target);
-  } else if (file.mimetype.startsWith('video/')) {
-    fs.writeFileSync(target, file.buffer);
-  } else {
-    fs.writeFileSync(target, file.buffer);
+async function saveUploadedFile(file, ownerId = null, type = 'generic') {
+  if (!file || !file.buffer) {
+    throw new Error('Aucun fichier à enregistrer');
+  }
+  if (file.buffer.length > MAX_UPLOAD_SIZE_BYTES) {
+    throw new Error('Le fichier dépasse la taille maximale de 4 Mo');
   }
 
-  return `/media/${name}`;
+  const ext = file.originalname ? file.originalname.split('.').pop().toLowerCase() : 'bin';
+  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${ext}`;
+  let dataBuffer = file.buffer;
+
+  if (file.mimetype.startsWith('image/')) {
+    dataBuffer = await sharp(file.buffer).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+  }
+
+  const media = await Media.create({
+    filename,
+    mime_type: file.mimetype || 'application/octet-stream',
+    size: dataBuffer.length,
+    owner_id: ownerId,
+    type,
+    data: dataBuffer,
+  });
+
+  return `/media/${media.id}`;
 }
 
 module.exports = { saveUploadedFile };

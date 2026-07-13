@@ -1,4 +1,5 @@
 const { Message, User, Group, Notification } = require('../models');
+const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 
 async function listConversations(req, res) {
   const conversations = await Message.findAll({
@@ -28,6 +29,9 @@ async function createMessage(req, res) {
   });
   if (req.body.receiver_id) {
     await Notification.create({ user_id: req.body.receiver_id, type: 'message', message: `${req.user.username} vous a envoyé un message`, payload: { messageId: message.id } });
+    if (isRealtimeEnabled) {
+      await triggerRealtimeEvent(`private-user-${req.body.receiver_id}`, 'message:receive', { messageId: message.id, senderId: req.user.id, content: message.content });
+    }
   }
   res.status(201).json(message);
 }
