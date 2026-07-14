@@ -1,7 +1,7 @@
 {
   "name": "epika-social",
   "version": "1.0.0",
-  "description": "Backend Epika Social - social chrétienne avec Socket.IO, MariaDB, JWT et uploads locaux",
+  "description": "Backend Epika Social - Express, Socket.IO, MariaDB, JWT et médias stockés en base",
   "main": "server.js",
   "engines": {
     "node": ">=18"

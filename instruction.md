@@ -1,6 +1,6 @@
 # Epika Social Backend
 
-Backend Node.js/Express.js pour l'application sociale chrétienne Epika Social, avec Socket.IO, MariaDB via Sequelize, JWT, uploads locaux et logique métier de rôles/admin.
+Backend Node.js/Express.js pour l'application sociale chrétienne Epika Social, avec Socket.IO, MariaDB via Sequelize, JWT, médias stockés en base et logique métier de rôles/admin.
 
 > **Version corrigée** — Ce document intègre l'ensemble des endpoints et fonctionnalités du cahier des charges complet (commentaires, likes, notifications, cardinal groups, leaderboard Foi, recherche, dashboard admin, etc.) qui manquaient dans la version précédente.
 
@@ -18,7 +18,7 @@ Ce backend fournit :
 - Recherche globale (utilisateurs, posts, groupes)
 - Dashboard statistiques pour les admins
 - Temps réel via Socket.IO pour messages, notifications, présence, feed, typing indicator
-- Stockage local des médias dans le dossier `uploads/` (compression via Sharp, pas de cloud storage)
+- Stockage des médias en base MariaDB via le modèle `Media` (compression via Sharp)
 
 ## 2. Stack technique
 
@@ -46,7 +46,6 @@ src/
   services/
   sockets/
   utils/
-uploads/
 postman/
 server.js
 ```
@@ -458,7 +457,7 @@ Variables de collection prévues : `baseUrl`, `accessToken`, `refreshToken`, `us
 - Vérifier que le statut/rôle correspond bien à la permission requise sur la route
 
 ### Fichiers non servis
-- Vérifier que le dossier `uploads/` existe et a les droits d'écriture
+- Vérifier que la table `media` existe et que la connexion MariaDB est disponible
 - Vérifier que le fichier a bien été téléchargé et n'a pas été supprimé via `/media/:filename`
 
 ### Socket.IO ne se connecte pas

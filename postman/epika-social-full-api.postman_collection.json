@@ -7,7 +7,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "https://backend-e-nine.vercel.app"
+      "value": "https://epika-social-api.onrender.com"
     },
     {
       "key": "accessToken",

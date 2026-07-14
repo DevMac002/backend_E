@@ -17,8 +17,8 @@ const dbMiddleware = require('./middlewares/db.middleware');
 
 const app = express();
 
-// Nécessaire car Vercel fait tourner l'app derrière un proxy :
-// sans ça, express-rate-limit rejette le header X-Forwarded-For et crash (502)
+// Render and most managed hosts run the app behind a proxy.
+// This lets express-rate-limit trust X-Forwarded-For without rejecting requests.
 app.set('trust proxy', 1);
 
 app.use(helmet());

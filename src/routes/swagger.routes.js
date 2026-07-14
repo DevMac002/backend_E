@@ -16,8 +16,7 @@ const swaggerOptions = {
       {
         // Prefer explicit BASE_URL, then hosted platform domains, otherwise fall back to localhost.
         url: process.env.BASE_URL
-          || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null)
-          || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+          || process.env.RENDER_EXTERNAL_URL
           || 'http://localhost:3000',
       },
     ],
