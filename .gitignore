@@ -1,4 +1,11 @@
 node_modules/
 .env
+.DS_Store
+.idea/
+*.iml
+.dart_tool/
+.flutter-plugins-dependencies
+.metadata
+build/
 uploads/*
 !.gitkeep

@@ -2,11 +2,16 @@ const bcrypt = require('bcrypt');
 const mariadb = require('mariadb');
 const { Sequelize } = require('sequelize');
 
-const dbHost = process.env.DB_HOST;
-const dbPort = Number(process.env.DB_PORT || 3306);
-const dbName = process.env.DB_NAME;
-const dbUser = process.env.DB_USER;
-const dbPassword = process.env.DB_PASSWORD;
+const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MARIADB_URL;
+const parsedDatabaseUrl = databaseUrl ? new URL(databaseUrl) : null;
+
+const dbHost = process.env.DB_HOST || process.env.MYSQLHOST || parsedDatabaseUrl?.hostname;
+const dbPort = Number(process.env.DB_PORT || process.env.MYSQLPORT || parsedDatabaseUrl?.port || 3306);
+const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || parsedDatabaseUrl?.pathname?.replace(/^\//, '');
+const dbUser = process.env.DB_USER || process.env.MYSQLUSER || parsedDatabaseUrl?.username;
+const dbPassword = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || parsedDatabaseUrl?.password;
+const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
+const isProduction = nodeEnv === 'production';
 
 const poolOptions = {
   max: Number(process.env.DB_POOL_MAX || 5),
@@ -53,7 +58,7 @@ if (!global.__EPIKA_SEQUELIZE__) global.__EPIKA_SEQUELIZE__ = sequelize;
 let connectPromise = global.__EPIKA_CONNECT__ || null;
 
 async function ensureDatabaseExists() {
-  if (process.env.NODE_ENV !== 'Production') return;
+  if (isProduction) return;
 
   const pool = mariadb.createPool({
     host: dbHost,
@@ -77,7 +82,7 @@ async function ensureDatabaseExists() {
 }
 
 async function ensureUserVerificationColumns() {
-  if (process.env.NODE_ENV === 'production') return;
+  if (isProduction) return;
 
   const pool = mariadb.createPool({
     host: dbHost,
@@ -111,7 +116,7 @@ async function ensureUserVerificationColumns() {
 }
 
 async function bootstrapDefaultAdmin() {
-  if (process.env.NODE_ENV === 'production') return;
+  if (isProduction) return;
 
   const User = require('../models/User');
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@epika.local';
@@ -145,7 +150,7 @@ async function connectDB() {
         await ensureUserVerificationColumns();
         await sequelize.authenticate();
         console.log('MariaDB connection established successfully.');
-        if (process.env.NODE_ENV !== 'production') {
+        if (!isProduction) {
           await sequelize.sync({ alter: true });
           console.log('Database synchronized.');
           await bootstrapDefaultAdmin();

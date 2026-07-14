@@ -14,8 +14,11 @@ const swaggerOptions = {
     },
     servers: [
       {
-        // Prefer explicit BASE_URL, then VERCEL_URL, otherwise fall back to localhost
-        url: process.env.BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
+        // Prefer explicit BASE_URL, then hosted platform domains, otherwise fall back to localhost.
+        url: process.env.BASE_URL
+          || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null)
+          || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+          || 'http://localhost:3000',
       },
     ],
   },
