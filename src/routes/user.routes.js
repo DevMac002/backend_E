@@ -20,5 +20,6 @@ router.put('/:id/role', authMiddleware, requireNotBanned, requireRole('admin', '
 router.put('/:id/status', authMiddleware, requireNotBanned, requireRole('superadmin'), controller.updateUserStatus);
 router.put('/:id/ban', authMiddleware, requireNotBanned, requireRole('admin', 'superadmin'), controller.banUser);
 router.post('/:id/reward', authMiddleware, requireNotBanned, requireRole('admin', 'superadmin'), controller.rewardUser);
+router.delete('/:id/admin', authMiddleware, requireNotBanned, requireRole('superadmin'), controller.adminDeleteUser);
 
 module.exports = router;

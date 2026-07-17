@@ -3,6 +3,18 @@ const { User, RoleChangeLog, RewardHistory, Op } = require('../models');
 const { saveUploadedFile } = require('../utils/file');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
+const { canManageUser, isSuperadmin } = require('../utils/permissions');
+
+const USER_ROLES = ['peuple', 'constellation', 'tornades', 'tour', 'batview'];
+const USER_STATUSES = ['user', 'admin'];
+
+function denyProtectedUserAction(req, res, targetUser) {
+  if (!canManageUser(req.user, targetUser)) {
+    res.status(403).json({ message: 'Vous ne pouvez pas gérer ce compte' });
+    return true;
+  }
+  return false;
+}
 
 async function getMe(req, res) {
   res.json(req.user);
@@ -73,15 +85,11 @@ async function deleteMe(req, res) {
 async function updateUserRole(req, res) {
   const targetUser = await User.findByPk(req.params.id);
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
-  if (req.user.status !== 'superadmin' && targetUser.status === 'superadmin') {
-    return res.status(403).json({ message: 'Impossible de modifier un superadmin' });
-  }
-  if (req.user.status === 'admin' && req.body.status === 'admin') {
-    return res.status(403).json({ message: 'Un admin ne peut pas créer un autre admin' });
-  }
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+  if (!USER_ROLES.includes(req.body.role)) return res.status(400).json({ message: 'Rôle invalide' });
   const previousRole = targetUser.role;
   const previousStatus = targetUser.status;
-  await targetUser.update({ role: req.body.role || targetUser.role, status: req.body.status || targetUser.status });
+  await targetUser.update({ role: req.body.role });
   await RoleChangeLog.create({ user_id: targetUser.id, ancien_role: previousRole, nouveau_role: targetUser.role, ancien_statut: previousStatus, nouveau_statut: targetUser.status, changed_by: req.user.id });
   if (isRealtimeEnabled) {
     await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:role_updated', { userId: targetUser.id, role: targetUser.role, status: targetUser.status });
@@ -90,12 +98,14 @@ async function updateUserRole(req, res) {
 }
 
 async function updateUserStatus(req, res) {
-  if (req.user.status !== 'superadmin') return res.status(403).json({ message: 'Accès refusé' });
+  if (!isSuperadmin(req.user)) return res.status(403).json({ message: 'Seul un superadmin peut modifier les droits d’administration' });
   const targetUser = await User.findByPk(req.params.id);
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+  if (!USER_STATUSES.includes(req.body.status)) return res.status(400).json({ message: 'Statut invalide' });
   const previousRole = targetUser.role;
   const previousStatus = targetUser.status;
-  await targetUser.update({ status: req.body.status || targetUser.status });
+  await targetUser.update({ status: req.body.status });
   await RoleChangeLog.create({ user_id: targetUser.id, ancien_role: previousRole, nouveau_role: targetUser.role, ancien_statut: previousStatus, nouveau_statut: targetUser.status, changed_by: req.user.id });
   if (isRealtimeEnabled) {
     await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:status_updated', { userId: targetUser.id, status: targetUser.status });
@@ -104,9 +114,9 @@ async function updateUserStatus(req, res) {
 }
 
 async function banUser(req, res) {
-  if (req.user.status !== 'admin' && req.user.status !== 'superadmin') return res.status(403).json({ message: 'Accès refusé' });
   const targetUser = await User.findByPk(req.params.id);
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  if (denyProtectedUserAction(req, res, targetUser)) return;
   await targetUser.update({ is_banned: req.body.ban !== false });
   if (isRealtimeEnabled) {
     await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:ban_updated', { userId: targetUser.id, banned: targetUser.is_banned });
@@ -115,13 +125,23 @@ async function banUser(req, res) {
 }
 
 async function rewardUser(req, res) {
-  if (req.user.status !== 'admin' && req.user.status !== 'superadmin') return res.status(403).json({ message: 'Accès refusé' });
   const targetUser = await User.findByPk(req.params.id);
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
-  const montant = Number(req.body.montant || 0);
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+  const montant = Number(req.body.montant);
+  if (!Number.isInteger(montant) || montant <= 0) return res.status(400).json({ message: 'Le montant doit être un entier positif' });
   await targetUser.update({ foi_points: targetUser.foi_points + montant });
   await RewardHistory.create({ user_id: targetUser.id, admin_id: req.user.id, montant, motif: req.body.motif || 'Récompense' });
   res.json({ message: 'Récompense attribuée', user: targetUser });
+}
+
+async function adminDeleteUser(req, res) {
+  if (!isSuperadmin(req.user)) return res.status(403).json({ message: 'Seul un superadmin peut supprimer un compte' });
+  const targetUser = await User.findByPk(req.params.id);
+  if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+  await targetUser.destroy();
+  res.json({ message: 'Compte supprimé par un superadmin' });
 }
 
 async function getUserRewards(req, res) {
@@ -140,4 +160,4 @@ async function getRoleLogs(req, res) {
   res.json(logs);
 }
 
-module.exports = { getMe, updateMe, listUsers, getUserById, uploadAvatar, deleteMe, updateUserRole, updateUserStatus, banUser, rewardUser, getUserRewards, getLeaderboard, getRoleLogs };
+module.exports = { getMe, updateMe, listUsers, getUserById, uploadAvatar, deleteMe, updateUserRole, updateUserStatus, banUser, rewardUser, adminDeleteUser, getUserRewards, getLeaderboard, getRoleLogs };

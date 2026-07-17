@@ -1,9 +1,9 @@
-const { Message, User, Group, Notification } = require('../models');
+const { Message, User, Group, GroupMember, Notification, Op } = require('../models');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 
 async function listConversations(req, res) {
   const conversations = await Message.findAll({
-    where: { sender_id: req.user.id },
+    where: { [Op.or]: [{ sender_id: req.user.id }, { receiver_id: req.user.id }] },
     include: [{ model: User, as: 'receiver', attributes: ['id', 'username', 'avatar_path'] }, { model: Group, attributes: ['id', 'nom'] }],
     order: [['created_at', 'DESC']],
   });
@@ -11,8 +11,27 @@ async function listConversations(req, res) {
 }
 
 async function listMessages(req, res) {
+  const group = await Group.findByPk(req.params.conversationId);
+  if (group) {
+    const membership = await GroupMember.findOne({ where: { group_id: group.id, user_id: req.user.id } });
+    if (!membership) return res.status(403).json({ message: 'Vous devez être membre du groupe pour voir ses messages' });
+    const messages = await Message.findAll({
+      where: { group_id: group.id },
+      include: [{ model: User, as: 'sender', attributes: ['id', 'username', 'avatar_path'] }],
+      order: [['created_at', 'ASC']],
+    });
+    return res.json(messages);
+  }
+
+  const otherUser = await User.findByPk(req.params.conversationId);
+  if (!otherUser) return res.status(404).json({ message: 'Conversation introuvable' });
   const messages = await Message.findAll({
-    where: { group_id: req.params.conversationId },
+    where: {
+      [Op.or]: [
+        { sender_id: req.user.id, receiver_id: otherUser.id },
+        { sender_id: otherUser.id, receiver_id: req.user.id },
+      ],
+    },
     include: [{ model: User, as: 'sender', attributes: ['id', 'username', 'avatar_path'] }],
     order: [['created_at', 'ASC']],
   });
@@ -20,6 +39,19 @@ async function listMessages(req, res) {
 }
 
 async function createMessage(req, res) {
+  const hasGroup = Boolean(req.body.group_id);
+  const hasReceiver = Boolean(req.body.receiver_id);
+  if (hasGroup === hasReceiver) return res.status(400).json({ message: 'Indiquez un groupe ou un destinataire, mais pas les deux' });
+
+  if (hasGroup) {
+    const membership = await GroupMember.findOne({ where: { group_id: req.body.group_id, user_id: req.user.id } });
+    if (!membership) return res.status(403).json({ message: 'Vous devez être membre du groupe pour y envoyer un message' });
+  } else {
+    const receiver = await User.findByPk(req.body.receiver_id);
+    if (!receiver || receiver.is_banned) return res.status(404).json({ message: 'Destinataire introuvable ou inaccessible' });
+  }
+
+  if (!req.body.content && !req.body.media_path) return res.status(400).json({ message: 'Le message ne peut pas être vide' });
   const message = await Message.create({
     group_id: req.body.group_id || null,
     sender_id: req.user.id,
@@ -39,6 +71,7 @@ async function createMessage(req, res) {
 async function markMessageAsRead(req, res) {
   const message = await Message.findByPk(req.params.id);
   if (!message) return res.status(404).json({ message: 'Message introuvable' });
+  if (message.receiver_id !== req.user.id) return res.status(403).json({ message: 'Seul le destinataire peut marquer ce message comme lu' });
   await message.update({ is_read: true });
   res.json(message);
 }

@@ -5,7 +5,7 @@ const router = express.Router();
 
 const serverUrl = process.env.BASE_URL
   || process.env.RENDER_EXTERNAL_URL
-  || 'http://localhost:3000';
+  || 'https://backend-e-m9ec.onrender.com';
 
 const jsonResponse = {
   description: 'Réponse JSON',
@@ -175,6 +175,15 @@ const openApiSpec = {
           visible_to: { type: 'string', example: 'all' },
           options: { type: 'array', items: { type: 'string' } },
           reponse_correcte: { type: 'string' },
+          quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'], description: 'Requis pour un nouveau quiz' },
+          choices: {
+            type: 'array',
+            minItems: 2,
+            maxItems: 20,
+            items: { type: 'object', required: ['id', 'label'], properties: { id: { type: 'string', example: 'a' }, label: { type: 'string', example: 'Une proposition' } } },
+          },
+          correct_answers: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'Identifiants des bonnes réponses' },
+          max_selections: { type: 'integer', minimum: 1, description: 'Nombre maximal de choix possibles pour une réponse multiple' },
           date_limite: { type: 'string', format: 'date-time' },
         },
       },
@@ -287,20 +296,23 @@ const openApiSpec = {
       get: authOperation('Users', 'Voir les récompenses Foi', { parameters: [idParam()] }),
     },
     '/users/{id}/role': {
-      put: authOperation('Users', 'Changer le rôle utilisateur', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', properties: { role: { type: 'string' } } }) }),
+      put: authOperation('Users', 'Changer le rôle communautaire utilisateur (admin ou superadmin)', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['role'], properties: { role: { type: 'string', enum: ['peuple', 'constellation', 'tornades', 'tour', 'batview'] } } }) }),
     },
     '/users/{id}/status': {
-      put: authOperation('Users', 'Changer le statut utilisateur', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', properties: { status: { type: 'string' } } }) }),
+      put: authOperation('Users', 'Attribuer ou retirer les droits d’administration (superadmin)', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['user', 'admin'] } } }) }),
     },
     '/users/{id}/ban': {
-      put: authOperation('Users', 'Bannir ou débannir un utilisateur', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', properties: { is_banned: { type: 'boolean' } } }) }),
+      put: authOperation('Users', 'Bannir ou débannir un utilisateur', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', properties: { ban: { type: 'boolean', default: true } } }) }),
     },
     '/users/{id}/reward': {
-      post: authOperation('Users', 'Attribuer des points Foi', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', properties: { points: { type: 'integer' }, reason: { type: 'string' } } }) }),
+      post: authOperation('Users', 'Attribuer des points Foi', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['montant'], properties: { montant: { type: 'integer', minimum: 1 }, motif: { type: 'string' } } }) }),
+    },
+    '/users/{id}/admin': {
+      delete: authOperation('Users', 'Supprimer définitivement un compte (superadmin)', { parameters: [idParam()] }),
     },
     '/posts': {
       get: authOperation('Posts', 'Lister le feed', { parameters: [...paginationParams, qParam] }),
-      post: authOperation('Posts', 'Créer une publication', { requestBody: multipartFileBody({ content: { type: 'string' }, type: { type: 'string' } }) }),
+      post: authOperation('Posts', 'Créer une publication ou un quiz', { requestBody: multipartFileBody({ content: { type: 'string' }, type: { type: 'string' }, quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'] }, choices: { type: 'string', description: 'Tableau JSON de choix pour un envoi multipart' }, correct_answers: { type: 'string', description: 'Tableau JSON des identifiants corrects' }, max_selections: { type: 'integer', minimum: 1 } }) }),
     },
     '/posts/predications': {
       get: authOperation('Posts', 'Lister prédications, annonces, sondages et quiz', { parameters: [...paginationParams, qParam] }),
@@ -331,7 +343,7 @@ const openApiSpec = {
       get: authOperation('Posts', 'Résultats de sondage', { parameters: [idParam()] }),
     },
     '/posts/{id}/answer': {
-      post: authOperation('Posts', 'Répondre à un quiz', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['answer'], properties: { answer: { type: 'string' } } }) }),
+      post: authOperation('Posts', 'Répondre à un quiz', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['answers'], properties: { answers: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'Un identifiant pour un choix unique/vrai-faux, plusieurs pour un choix multiple' } } }) }),
     },
     '/posts/{id}/quiz-results': {
       get: authOperation('Posts', 'Résultats de quiz', { parameters: [idParam()] }),
@@ -368,7 +380,7 @@ const openApiSpec = {
       get: authOperation('Messages', 'Nombre de messages non lus'),
     },
     '/messages/{conversationId}': {
-      get: authOperation('Messages', 'Lister les messages', { parameters: [idParam('conversationId', 'Identifiant de conversation ou groupe')] }),
+      get: authOperation('Messages', 'Lister les messages d’un groupe ou d’une conversation privée', { parameters: [idParam('conversationId', 'Identifiant du groupe ou de l’autre utilisateur')] }),
     },
     '/messages': {
       post: authOperation('Messages', 'Créer un message', { requestBody: jsonBody({ $ref: '#/components/schemas/MessageInput' }) }),

@@ -5,7 +5,7 @@ const { User, RoleChangeLog } = require('../models');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireNotBanned } = require('../middlewares/status.middleware');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/token');
-const { sendWelcomeEmail, sendVerificationCodeEmail, sendAccountVerifiedEmail, sendPasswordResetCodeEmail, sendPasswordChangedEmail } = require('../utils/email');
+const { sendWelcomeEmail, sendVerificationCodeEmail, sendPasswordResetCodeEmail, sendPasswordChangedEmail } = require('../utils/email');
 const { generateOtpCode, getOtpExpiration } = require('../utils/otp');
 const Joi = require('joi');
 
@@ -203,7 +203,7 @@ router.post('/send-verification-code', async (req, res) => {
     });
 
     await sendVerificationCodeEmail(user.email, code);
-    res.json({ message: 'Code envoyé', code });
+    res.json({ message: 'Code envoyé' });
   } catch (e) {
     res.status(500).json({ message: 'Échec de l’envoi du code' });
   }
@@ -241,7 +241,6 @@ router.post('/verify-email', async (req, res) => {
 
     try {
       await sendWelcomeEmail(user);
-      await sendAccountVerifiedEmail(user);
     } catch (emailError) {
       console.warn('Welcome/verification email could not be sent:', emailError.message);
     }
