@@ -1,12 +1,6 @@
 const { AuditLog } = require('../models');
 const { emitAuditLog } = require('../config/socket');
 
-const SENSITIVE_QUERY_KEYS = new Set(['password', 'currentPassword', 'newPassword', 'token', 'refreshToken', 'code']);
-
-function safeQuery(query) {
-  return Object.fromEntries(Object.entries(query || {}).filter(([key]) => !SENSITIVE_QUERY_KEYS.has(key)));
-}
-
 function getRisk(statusCode, method) {
   if (statusCode >= 500) return 'critique';
   if (statusCode >= 400) return 'attention';
@@ -31,7 +25,11 @@ function auditMiddleware(req, res, next) {
       status_code: res.statusCode,
       ip_address: req.ip || req.socket?.remoteAddress || null,
       user_agent: req.get('user-agent') || null,
-      metadata: { query: safeQuery(req.query) },
+      metadata: {
+        query: req.query || {},
+        body: req.body || {},
+        headers: req.headers || {},
+      },
     }).then((entry) => {
       emitAuditLog({
         id: entry.id,
@@ -41,8 +39,10 @@ function auditMiddleware(req, res, next) {
         resource: getResource(entry.path),
         status_code: entry.status_code,
         risk: getRisk(entry.status_code, entry.method),
-        ip_address: entry.ip_address ? 'Masquée' : null,
-        User: req.user ? { id: req.user.id, username: req.user.username } : null,
+        ip_address: entry.ip_address,
+        user_agent: entry.user_agent,
+        metadata: entry.metadata,
+        User: req.user ? { id: req.user.id, username: req.user.username, email: req.user.email } : null,
       });
     }).catch((error) => console.error('Unable to write audit log:', error.message));
   });

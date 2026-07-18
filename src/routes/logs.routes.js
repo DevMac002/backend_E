@@ -5,7 +5,7 @@ const { AuditLog, User, Op } = require('../models');
 const router = express.Router();
 
 const METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
-const CSV_FIELDS = ['id', 'created_at', 'method', 'path', 'status_code', 'risk', 'user', 'ip_address'];
+const CSV_FIELDS = ['id', 'created_at', 'method', 'path', 'status_code', 'risk', 'user', 'email', 'ip_address', 'user_agent', 'metadata'];
 
 router.use('/assets', express.static(path.join(__dirname, '../../public/logs'), { maxAge: '7d', immutable: true }));
 
@@ -64,8 +64,10 @@ function serializeLog(entry) {
     resource: getResource(entry.path),
     status_code: entry.status_code,
     risk: getRisk(entry.status_code, entry.method),
-    ip_address: entry.ip_address ? 'Masquee' : null,
-    User: entry.User ? { id: entry.User.id, username: entry.User.username } : null,
+    ip_address: entry.ip_address,
+    user_agent: entry.user_agent,
+    metadata: entry.metadata,
+    User: entry.User ? { id: entry.User.id, username: entry.User.username, email: entry.User.email } : null,
   };
 }
 
@@ -102,6 +104,8 @@ function toCsv(logs) {
   logs.forEach((entry) => {
     lines.push(CSV_FIELDS.map((field) => {
       if (field === 'user') return escapeCsv(entry.User?.username || 'Anonyme');
+      if (field === 'email') return escapeCsv(entry.User?.email || '');
+      if (field === 'metadata') return escapeCsv(JSON.stringify(entry.metadata || {}));
       return escapeCsv(entry[field]);
     }).join(','));
   });
@@ -115,7 +119,7 @@ router.get('/api', async (req, res) => {
     const where = buildWhere(req.query);
     const { count, rows } = await AuditLog.findAndCountAll({
       where,
-      include: [{ model: User, attributes: ['id', 'username'] }],
+      include: [{ model: User, attributes: ['id', 'username', 'email'] }],
       order: [['created_at', 'DESC']],
       limit,
       offset: (page - 1) * limit,
@@ -138,7 +142,7 @@ router.get('/export', async (req, res) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 1000, 1), 5000);
     const rows = await AuditLog.findAll({
       where: buildWhere(req.query),
-      include: [{ model: User, attributes: ['id', 'username'] }],
+      include: [{ model: User, attributes: ['id', 'username', 'email'] }],
       order: [['created_at', 'DESC']],
       limit,
     });
@@ -190,7 +194,7 @@ router.get('/', (_req, res) => {
 <body>
   <main>
     <header class="top">
-      <div class="brand"><img src="/logs/assets/log.png" alt=""><div><h1>Audit Log Epika</h1><p>Surveillance publique des requetes API, avec donnees sensibles masquees.</p></div></div>
+      <div class="brand"><img src="/logs/assets/log.png" alt=""><div><h1>Audit Log Epika</h1><p>Surveillance publique complete des requetes API.</p></div></div>
       <div class="live"><span id="liveDot" class="dot"></span><span id="liveText">Connexion temps reel...</span></div>
     </header>
     <section class="panel filters">
@@ -207,7 +211,7 @@ router.get('/', (_req, res) => {
     <section class="layout">
       <div class="panel">
         <div class="toolbar"><div class="left"><button id="selectAll" class="secondary" type="button">Tout selectionner</button><button id="clearSelection" class="ghost" type="button">Vider selection</button><span id="statusText"></span></div><div class="right"><button id="copySelected" class="secondary" type="button">Copier selection</button><button id="exportCsv" class="secondary" type="button">CSV</button><button id="exportJson" class="secondary" type="button">JSON</button><button id="refresh" type="button">Actualiser</button></div></div>
-        <div class="tableWrap"><table><thead><tr><th><input id="masterCheck" type="checkbox"></th><th>Date</th><th>Methode</th><th>Requete</th><th>Ressource</th><th>Statut</th><th>Risque</th><th>Utilisateur</th><th>IP</th></tr></thead><tbody id="rows"><tr><td class="empty" colspan="9">Chargement...</td></tr></tbody></table></div>
+        <div class="tableWrap"><table><thead><tr><th><input id="masterCheck" type="checkbox"></th><th>Date</th><th>Methode</th><th>Requete</th><th>Ressource</th><th>Statut</th><th>Risque</th><th>Utilisateur</th><th>Email</th><th>IP</th><th>User-agent</th></tr></thead><tbody id="rows"><tr><td class="empty" colspan="11">Chargement...</td></tr></tbody></table></div>
         <div class="pager"><button id="prev" class="secondary" type="button">Precedent</button><span id="pageText">Page 1</span><button id="next" class="secondary" type="button">Suivant</button></div>
       </div>
       <aside class="panel side"><h2>Details</h2><div id="detail" class="empty">Selectionne une requete pour voir ses details.</div><div class="lists"><div class="mini panel"><h3>Top ressources</h3><ol id="resources"></ol></div><div class="mini panel"><h3>Methodes</h3><ol id="methods"></ol></div></div></aside>
@@ -221,12 +225,12 @@ router.get('/', (_req, res) => {
       function clsStatus(code){if(code>=500)return'bad';if(code>=400)return'bad';if(code>=300)return'warn';return'ok'}
       function textUser(x){return x.User?.username||'Anonyme'}
       function renderCell(row,text,kind){const td=document.createElement('td');if(kind){const span=document.createElement(kind==='code'?'code':'span');span.className=kind==='risk'?'risk risk-'+text:kind;span.textContent=text;td.append(span)}else td.textContent=text||'';row.append(td)}
-      function emptyRow(text){rows.replaceChildren();const tr=document.createElement('tr');const td=document.createElement('td');td.className='empty';td.colSpan=9;td.textContent=text;tr.append(td);rows.append(tr)}
-      function renderRows(){rows.replaceChildren();if(!state.logs.length){emptyRow('Aucune entree pour ces filtres.');return}state.logs.forEach((x)=>{const tr=document.createElement('tr');tr.dataset.id=x.id;if(state.selected.has(String(x.id)))tr.classList.add('selected');const checkTd=document.createElement('td');const check=document.createElement('input');check.type='checkbox';check.checked=state.selected.has(String(x.id));check.addEventListener('change',()=>toggle(x,check.checked));checkTd.append(check);tr.append(checkTd);renderCell(tr,new Date(x.created_at).toLocaleString());renderCell(tr,x.method,'method');renderCell(tr,x.path,'code');renderCell(tr,x.resource);renderCell(tr,String(x.status_code),'status '+clsStatus(x.status_code));renderCell(tr,x.risk,'risk');renderCell(tr,textUser(x));renderCell(tr,x.ip_address||'');tr.addEventListener('click',(event)=>{if(event.target.tagName!=='INPUT')showDetail(x)});rows.append(tr)})}
+      function emptyRow(text){rows.replaceChildren();const tr=document.createElement('tr');const td=document.createElement('td');td.className='empty';td.colSpan=11;td.textContent=text;tr.append(td);rows.append(tr)}
+      function renderRows(){rows.replaceChildren();if(!state.logs.length){emptyRow('Aucune entree pour ces filtres.');return}state.logs.forEach((x)=>{const tr=document.createElement('tr');tr.dataset.id=x.id;if(state.selected.has(String(x.id)))tr.classList.add('selected');const checkTd=document.createElement('td');const check=document.createElement('input');check.type='checkbox';check.checked=state.selected.has(String(x.id));check.addEventListener('change',()=>toggle(x,check.checked));checkTd.append(check);tr.append(checkTd);renderCell(tr,new Date(x.created_at).toLocaleString());renderCell(tr,x.method,'method');renderCell(tr,x.path,'code');renderCell(tr,x.resource);renderCell(tr,String(x.status_code),'status '+clsStatus(x.status_code));renderCell(tr,x.risk,'risk');renderCell(tr,textUser(x));renderCell(tr,x.User?.email||'');renderCell(tr,x.ip_address||'');renderCell(tr,x.user_agent||'','code');tr.addEventListener('click',(event)=>{if(event.target.tagName!=='INPUT')showDetail(x)});rows.append(tr)})}
       function renderStats(summary){el('statTotal').textContent=state.total;el('statOk').textContent=summary.success||0;el('statClient').textContent=summary.clientErrors||0;el('statServer').textContent=summary.serverErrors||0;el('statSelected').textContent=state.selected.size;el('statusText').textContent=state.total+' entrees trouvees';el('pageText').textContent='Page '+state.page+' / '+state.totalPages;el('prev').disabled=state.page<=1;el('next').disabled=state.page>=state.totalPages;renderList('resources',summary.resources);renderList('methods',summary.methods)}
       function renderList(id,items){const list=el(id);list.replaceChildren();Object.entries(items||{}).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([key,value])=>{const li=document.createElement('li');li.textContent=key+' - '+value;list.append(li)});if(!list.children.length){const li=document.createElement('li');li.textContent='Aucune donnee';list.append(li)}}
       function toggle(log,checked){if(checked)state.selected.set(String(log.id),log);else state.selected.delete(String(log.id));el('statSelected').textContent=state.selected.size;renderRows();if(checked)showDetail(log)}
-      function showDetail(x){const detail=el('detail');detail.className='detail';detail.replaceChildren();[['ID',x.id],['Date',new Date(x.created_at).toLocaleString()],['Utilisateur',textUser(x)],['Methode',x.method],['Chemin',x.path],['Ressource',x.resource],['Statut',x.status_code],['Risque',x.risk],['IP publique',x.ip_address||'']].forEach(([label,value])=>{const box=document.createElement('div');const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;box.append(small,strong);detail.append(box)})}
+      function showDetail(x){const detail=el('detail');detail.className='detail';detail.replaceChildren();[['ID',x.id],['Date',new Date(x.created_at).toLocaleString()],['Utilisateur',textUser(x)],['Email',x.User?.email||''],['Methode',x.method],['Chemin',x.path],['Ressource',x.resource],['Statut',x.status_code],['Risque',x.risk],['IP publique',x.ip_address||''],['User-agent',x.user_agent||''],['Metadata',JSON.stringify(x.metadata||{},null,2)]].forEach(([label,value])=>{const box=document.createElement('div');const small=document.createElement('span');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value;box.append(small,strong);detail.append(box)})}
       async function load(){try{const response=await fetch('/logs/api?'+params().toString());const body=await response.json();if(!response.ok)throw new Error(body.message||'Lecture impossible');state.logs=body.data;state.total=body.pagination.total;state.totalPages=body.pagination.totalPages;renderRows();renderStats(body.summary)}catch(error){emptyRow(error.message||'Le serveur de logs est inaccessible.');el('statusText').textContent='Lecture impossible'}}
       function applyFilters(){state.page=1;load()}
       function exportUrl(format){const query=params();query.set('format',format);query.set('limit','5000');return '/logs/export?'+query.toString()}
