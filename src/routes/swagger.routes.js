@@ -454,7 +454,7 @@ const openApiSpec = {
       delete: authOperation('Media', 'Supprimer un média', { parameters: [idParam()] }),
     },
     '/logs/api': {
-      get: authOperation('Logs', 'Consulter le journal d’audit (superadmin)', { parameters: [...paginationParams, { name: 'user_id', in: 'query', schema: { type: 'integer' } }, { name: 'path', in: 'query', schema: { type: 'string' } }] }),
+      get: authOperation('Logs', 'Consulter le journal d’audit (admin ou superadmin)', { parameters: [...paginationParams, { name: 'user_id', in: 'query', schema: { type: 'integer' } }, { name: 'path', in: 'query', schema: { type: 'string' } }] }),
     },
   },
 };
