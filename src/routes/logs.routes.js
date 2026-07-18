@@ -14,31 +14,46 @@ const router = express.Router();
 router.use('/assets', express.static(path.join(__dirname, '../../public/logs'), { maxAge: '7d', immutable: true }));
 
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ message: 'Email et mot de passe requis' });
-  const user = await User.findOne({ where: { email: String(email).trim().toLowerCase() } });
-  if (!user || user.is_banned || isTemporaryBlockActive(user)) return res.status(401).json({ message: 'Identifiants invalides ou compte inaccessible' });
-  if (!['admin', 'superadmin'].includes(user.status)) return res.status(403).json({ message: 'Accès réservé aux administrateurs' });
-  const passwordValid = await bcrypt.compare(password, user.password_hash);
-  if (!passwordValid) return res.status(401).json({ message: 'Identifiants invalides' });
-  const session = await createSession(user, req, 'logs-dashboard');
-  res.json({ accessToken: generateAccessToken(user, session), user: { id: user.id, username: user.username, status: user.status } });
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email et mot de passe requis' });
+    const user = await User.findOne({ where: { email: String(email).trim().toLowerCase() } });
+    if (!user || user.is_banned || isTemporaryBlockActive(user)) return res.status(401).json({ message: 'Identifiants invalides ou compte inaccessible' });
+    if (!['admin', 'superadmin'].includes(user.status)) return res.status(403).json({ message: 'Accès réservé aux administrateurs' });
+    const passwordValid = await bcrypt.compare(password, user.password_hash);
+    if (!passwordValid) return res.status(401).json({ message: 'Mot de passe invalide' });
+    const session = await createSession(user, req, 'logs-dashboard');
+    return res.json({ accessToken: generateAccessToken(user, session), user: { id: user.id, username: user.username, status: user.status } });
+  } catch (error) {
+    console.error('Logs login failed:', error);
+    const isMissingMigration = error?.original?.code === 'ER_NO_SUCH_TABLE' || error?.parent?.code === 'ER_NO_SUCH_TABLE';
+    return res.status(500).json({
+      message: isMissingMigration
+        ? 'Le service de logs n’est pas initialisé : appliquez la migration de base de données puis redémarrez le serveur.'
+        : 'Connexion au service de logs impossible. Consultez les logs serveur.',
+    });
+  }
 });
 
 router.get('/api', authMiddleware, requireNotBanned, requireRole('admin', 'superadmin'), async (req, res) => {
-  const page = Math.max(Number(req.query.page) || 1, 1);
-  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 250);
-  const where = {};
-  if (req.query.user_id) where.user_id = Number(req.query.user_id);
-  if (req.query.path) where.path = { [Op.like]: `%${req.query.path}%` };
-  const { count, rows } = await AuditLog.findAndCountAll({
-    where,
-    include: [{ model: User, attributes: ['id', 'username', 'email'] }],
-    order: [['created_at', 'DESC']],
-    limit,
-    offset: (page - 1) * limit,
-  });
-  res.json({ data: rows, pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) } });
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 250);
+    const where = {};
+    if (req.query.user_id) where.user_id = Number(req.query.user_id);
+    if (req.query.path) where.path = { [Op.like]: `%${req.query.path}%` };
+    const { count, rows } = await AuditLog.findAndCountAll({
+      where,
+      include: [{ model: User, attributes: ['id', 'username', 'email'] }],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset: (page - 1) * limit,
+    });
+    return res.json({ data: rows, pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) } });
+  } catch (error) {
+    console.error('Unable to read audit logs:', error);
+    return res.status(500).json({ message: 'Lecture des logs impossible. Vérifiez que la migration est appliquée.' });
+  }
 });
 
 router.get('/', (_req, res) => {
