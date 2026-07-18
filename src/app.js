@@ -28,10 +28,10 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'epika-social' }));
-
 // Kept before rate limiting so rejected requests are audited as well.
 app.use(auditMiddleware);
+
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'epika-social' }));
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

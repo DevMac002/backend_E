@@ -4,7 +4,7 @@ API Node.js/Express pour le réseau social chrétien Epika Social. Elle fournit 
 
 La documentation interactive est disponible sur `/docs` et sa spécification OpenAPI sur `/docs/openapi.json`.
 
-Le journal d’audit est disponible sur `/logs` sur l’environnement local comme hébergé. Cette page propose une connexion par email et mot de passe, vérifiée dans la base de données; seuls les comptes `admin` ou `superadmin` peuvent la consulter. Le jeton de session n’est conservé qu’en mémoire du navigateur.
+Le journal d’audit est disponible publiquement sur `/logs` sur l’environnement local comme hébergé, sans connexion. Les entrées sont également disponibles en JSON sur `/logs/api`.
 
 ## Prérequis et démarrage
 
@@ -135,7 +135,7 @@ Toute action d’administration doit être journalisée avec l’administrateur 
 
 ## Journal d’audit
 
-Chaque requête API est enregistrée dans `audit_logs` avec l’utilisateur identifié, la méthode, le chemin, le code de réponse, l’adresse IP, l’agent utilisateur et les paramètres non sensibles. Les mots de passe, OTP et jetons ne sont jamais journalisés. Le tableau de consultation est exposé sur `/logs` et ses données sur `/logs/api`; les deux accès aux données sont réservés aux administrateurs et superadministrateurs.
+Chaque requête API, y compris les requêtes refusées par le rate limiting et le contrôle de santé, est enregistrée dans `audit_logs` avec l’utilisateur identifié, la méthode, le chemin, le code de réponse, l’adresse IP, l’agent utilisateur et les paramètres non sensibles. Les mots de passe, OTP et jetons ne sont jamais journalisés. Le tableau de consultation est exposé publiquement sur `/logs` et ses données JSON sur `/logs/api`.
 
 ## Publications, sondages et quiz
 
