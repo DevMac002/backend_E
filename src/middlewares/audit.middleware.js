@@ -7,6 +7,19 @@ function safeQuery(query) {
   return Object.fromEntries(Object.entries(query || {}).filter(([key]) => !SENSITIVE_QUERY_KEYS.has(key)));
 }
 
+function getRisk(statusCode, method) {
+  if (statusCode >= 500) return 'critique';
+  if (statusCode >= 400) return 'attention';
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return 'mutation';
+  return 'normal';
+}
+
+function getResource(requestPath) {
+  const [first] = String(requestPath || '').split('?');
+  const segment = first.split('/').filter(Boolean)[0];
+  return segment || 'racine';
+}
+
 function auditMiddleware(req, res, next) {
   // Avoid recursively recording the audit viewer's polling requests.
   if (req.path.startsWith('/logs')) return next();
@@ -25,7 +38,9 @@ function auditMiddleware(req, res, next) {
         created_at: entry.created_at,
         method: entry.method,
         path: entry.path,
+        resource: getResource(entry.path),
         status_code: entry.status_code,
+        risk: getRisk(entry.status_code, entry.method),
         ip_address: entry.ip_address ? 'Masquée' : null,
         User: req.user ? { id: req.user.id, username: req.user.username } : null,
       });
