@@ -2,7 +2,7 @@ const express = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireNotBanned } = require('../middlewares/status.middleware');
 const { requireRole } = require('../middlewares/role.middleware');
-const { User, Post, Group, Message, sequelize } = require('../models');
+const { User, Post, Group, Message, ModerationLog, sequelize } = require('../models');
 
 const router = express.Router();
 
@@ -29,8 +29,11 @@ router.get('/stats/growth', authMiddleware, requireNotBanned, requireRole('admin
 });
 
 router.get('/logs', authMiddleware, requireNotBanned, requireRole('superadmin'), async (req, res) => {
-  const logs = await require('../models').RoleChangeLog.findAll({ order: [['created_at', 'DESC']], limit: 100 });
-  res.json(logs);
+  const [roleLogs, moderationLogs] = await Promise.all([
+    require('../models').RoleChangeLog.findAll({ order: [['created_at', 'DESC']], limit: 100 }),
+    ModerationLog.findAll({ order: [['created_at', 'DESC']], limit: 100 }),
+  ]);
+  res.json({ role_changes: roleLogs, moderation: moderationLogs });
 });
 
 module.exports = router;

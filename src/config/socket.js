@@ -1,6 +1,8 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const { isTemporaryBlockActive } = require('../utils/user-access');
+const { validateSession } = require('../utils/sessions');
 
 let io;
 
@@ -15,7 +17,8 @@ function initSocket(server) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findByPk(decoded.id);
-      if (!user || user.is_banned) return next(new Error('Utilisateur non autorisé'));
+      if (!user || user.is_banned || isTemporaryBlockActive(user)) return next(new Error('Utilisateur non autorisé'));
+      if (decoded.sid && !await validateSession(decoded.sid, user.id)) return next(new Error('Session expirée ou révoquée'));
       socket.user = user;
       next();
     } catch (err) {

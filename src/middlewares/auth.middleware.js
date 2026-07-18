@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const { validateSession } = require('../utils/sessions');
 
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -13,6 +14,9 @@ async function authMiddleware(req, res, next) {
     const user = await User.findByPk(decoded.id);
     if (!user || user.is_banned) {
       return res.status(403).json({ message: 'Compte banni ou inaccessible' });
+    }
+    if (decoded.sid && !await validateSession(decoded.sid, user.id)) {
+      return res.status(401).json({ message: 'Session expirée ou révoquée' });
     }
     req.user = user;
     next();

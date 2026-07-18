@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const sharp = require('sharp');
 const { Media } = require('../models');
 
-const MAX_UPLOAD_SIZE_BYTES = 4 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_BYTES = Number(process.env.UPLOAD_MAX_SIZE_MB || 25) * 1024 * 1024;
 
 async function saveUploadedFile(file, ownerId = null, type = 'generic') {
   if (!file || !file.buffer) {
@@ -15,14 +15,17 @@ async function saveUploadedFile(file, ownerId = null, type = 'generic') {
   const ext = file.originalname ? file.originalname.split('.').pop().toLowerCase() : 'bin';
   const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${ext}`;
   let dataBuffer = file.buffer;
+  let mimeType = file.mimetype || 'application/octet-stream';
 
   if (file.mimetype.startsWith('image/')) {
     dataBuffer = await sharp(file.buffer).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+    mimeType = 'image/jpeg';
   }
 
   const media = await Media.create({
     filename,
-    mime_type: file.mimetype || 'application/octet-stream',
+    original_name: file.originalname || null,
+    mime_type: mimeType,
     size: dataBuffer.length,
     owner_id: ownerId,
     type,

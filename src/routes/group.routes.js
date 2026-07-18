@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { requireNotBanned } = require('../middlewares/status.middleware');
+const { requireNotBanned, requireAccess } = require('../middlewares/status.middleware');
 const controller = require('../controllers/group.controller');
 
 const router = express.Router();
@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', authMiddleware, requireNotBanned, controller.listGroups);
 router.get('/discover', authMiddleware, requireNotBanned, controller.discoverGroups);
 router.get('/:id', authMiddleware, requireNotBanned, controller.getGroup);
-router.post('/', authMiddleware, requireNotBanned, controller.createGroup);
+router.post('/', authMiddleware, requireNotBanned, requireAccess('groups'), controller.createGroup);
 router.put('/:id', authMiddleware, requireNotBanned, controller.updateGroup);
 router.delete('/:id', authMiddleware, requireNotBanned, controller.deleteGroup);
 router.get('/:id/members', authMiddleware, requireNotBanned, controller.listMembers);

@@ -12,6 +12,9 @@ const Comment = require('./Comment');
 const Notification = require('./Notification');
 const QuizAnswer = require('./QuizAnswer');
 const Media = require('./Media');
+const ModerationLog = require('./ModerationLog');
+const UserSession = require('./UserSession');
+const AuditLog = require('./AuditLog');
 
 User.hasMany(Post, { foreignKey: 'author_id' });
 Post.belongsTo(User, { foreignKey: 'author_id' });
@@ -67,6 +70,16 @@ QuizAnswer.belongsTo(Post, { foreignKey: 'post_id' });
 User.hasMany(Media, { foreignKey: 'owner_id' });
 Media.belongsTo(User, { foreignKey: 'owner_id' });
 
+User.hasMany(ModerationLog, { as: 'moderation_actions', foreignKey: 'user_id' });
+User.hasMany(ModerationLog, { as: 'moderation_actor_actions', foreignKey: 'admin_id' });
+ModerationLog.belongsTo(User, { as: 'target', foreignKey: 'user_id' });
+ModerationLog.belongsTo(User, { as: 'admin', foreignKey: 'admin_id' });
+
+User.hasMany(UserSession, { foreignKey: 'user_id' });
+UserSession.belongsTo(User, { foreignKey: 'user_id' });
+User.hasMany(AuditLog, { foreignKey: 'user_id' });
+AuditLog.belongsTo(User, { foreignKey: 'user_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -82,4 +95,7 @@ module.exports = {
   Notification,
   QuizAnswer,
   Media,
+  ModerationLog,
+  UserSession,
+  AuditLog,
 };

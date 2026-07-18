@@ -7,6 +7,8 @@ const { requireNotBanned } = require('../middlewares/status.middleware');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/token');
 const { sendWelcomeEmail, sendVerificationCodeEmail, sendPasswordResetCodeEmail, sendPasswordChangedEmail } = require('../utils/email');
 const { generateOtpCode, getOtpExpiration } = require('../utils/otp');
+const { isTemporaryBlockActive } = require('../utils/user-access');
+const { createSession, validateSession } = require('../utils/sessions');
 const Joi = require('joi');
 
 const router = express.Router();
@@ -83,12 +85,14 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
     const user = await User.findOne({ where: { email } });
     if (!user || user.is_banned) return res.status(401).json({ message: 'Identifiants invalides' });
+    if (isTemporaryBlockActive(user)) return res.status(403).json({ message: 'Compte temporairement bloqué', blocked_until: user.blocked_until, reason: user.block_reason });
     if (!user.is_verified) return res.status(403).json({ message: 'Compte non vérifié. Vérifiez votre email.' });
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ message: 'Identifiants invalides' });
     await user.update({ device: String(device).trim() });
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const session = await createSession(user, req, device);
+    const accessToken = generateAccessToken(user, session);
+    const refreshToken = generateRefreshToken(user, session);
     res.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email, role: user.role, status: user.status, is_verified: user.is_verified, device: user.device } });
   } catch (e) {
     res.status(500).json({ message: 'Erreur serveur' });
@@ -245,8 +249,9 @@ router.post('/verify-email', async (req, res) => {
       console.warn('Welcome/verification email could not be sent:', emailError.message);
     }
 
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const session = await createSession(user, req, user.device);
+    const accessToken = generateAccessToken(user, session);
+    const refreshToken = generateRefreshToken(user, session);
 
     res.json({
       message: 'Email vérifié avec succès. Bienvenue !',
@@ -266,7 +271,9 @@ router.post('/refresh', async (req, res) => {
     const decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
     const user = await User.findByPk(decoded.id);
     if (!user || user.is_banned) return res.status(403).json({ message: 'Utilisateur inaccessible' });
-    const accessToken = generateAccessToken(user);
+    const session = decoded.sid ? await validateSession(decoded.sid, user.id) : null;
+    if (decoded.sid && !session) return res.status(401).json({ message: 'Session expirée ou révoquée' });
+    const accessToken = generateAccessToken(user, session);
     res.json({ accessToken });
   } catch (e) {
     res.status(401).json({ message: 'Refresh token invalide' });

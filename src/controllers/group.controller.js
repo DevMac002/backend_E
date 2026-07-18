@@ -1,4 +1,4 @@
-const { Group, GroupMember, User, Notification, Op } = require('../models');
+const { Group, GroupMember, User, Notification, ModerationLog, Op } = require('../models');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 const { isPlatformAdmin } = require('../utils/permissions');
@@ -90,6 +90,9 @@ async function addMember(req, res) {
   if (!['membre', 'moderateur'].includes(requestedRole)) return res.status(400).json({ message: 'Rôle de groupe invalide' });
   if (requestedRole === 'moderateur' && !canManageGroupSettings(manager)) return res.status(403).json({ message: 'Seul le créateur ou un admin peut désigner un modérateur' });
   const member = await GroupMember.create({ group_id: group.id, user_id: user.id, role_in_group: requestedRole });
+  if (isPlatformAdmin(req.user)) {
+    await ModerationLog.create({ user_id: user.id, admin_id: req.user.id, action: 'group_assigned', metadata: { group_id: group.id, role_in_group: requestedRole } });
+  }
   await Notification.create({ user_id: user.id, type: 'group_join', message: `Vous avez été ajouté au groupe ${group.nom}`, payload: { groupId: group.id } });
   if (isRealtimeEnabled) {
     await triggerRealtimeEvent(`private-user-${req.body.user_id}`, 'group:member_added', { groupId: group.id, groupName: group.nom });

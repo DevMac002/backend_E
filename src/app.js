@@ -13,7 +13,9 @@ const searchRoutes = require('./routes/search.routes');
 const adminRoutes = require('./routes/admin.routes');
 const mediaRoutes = require('./routes/media.routes');
 const swaggerRoutes = require('./routes/swagger.routes');
+const logsRoutes = require('./routes/logs.routes');
 const dbMiddleware = require('./middlewares/db.middleware');
+const auditMiddleware = require('./middlewares/audit.middleware');
 
 const app = express();
 
@@ -27,6 +29,9 @@ app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'epika-social' }));
+
+// Kept before rate limiting so rejected requests are audited as well.
+app.use(auditMiddleware);
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -47,5 +52,6 @@ app.use('/search', searchRoutes);
 app.use('/admin', adminRoutes);
 app.use('/media', mediaRoutes);
 app.use('/docs', swaggerRoutes);
+app.use('/logs', logsRoutes);
 
 module.exports = { app };

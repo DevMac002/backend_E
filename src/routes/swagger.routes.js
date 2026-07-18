@@ -117,6 +117,7 @@ const openApiSpec = {
     { name: 'Search' },
     { name: 'Admin' },
     { name: 'Media' },
+    { name: 'Logs' },
   ],
   components: {
     securitySchemes: {
@@ -280,6 +281,15 @@ const openApiSpec = {
     '/users/me/avatar': {
       post: authOperation('Users', 'Uploader mon avatar', { requestBody: multipartFileBody() }),
     },
+    '/users/me/change-email': {
+      post: authOperation('Users', 'Modifier mon email et lancer sa vérification', { requestBody: jsonBody({ type: 'object', required: ['email', 'currentPassword'], properties: { email: { type: 'string', format: 'email' }, currentPassword: { type: 'string', format: 'password' } } }) }),
+    },
+    '/users/me/devices': {
+      get: authOperation('Users', 'Lister mes appareils connectés'),
+    },
+    '/users/me/devices/{sessionId}': {
+      delete: authOperation('Users', 'Déconnecter un de mes appareils', { parameters: [{ name: 'sessionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }] }),
+    },
     '/users/leaderboard/foi': {
       get: authOperation('Users', 'Classement Foi'),
     },
@@ -295,6 +305,9 @@ const openApiSpec = {
     '/users/{id}/rewards': {
       get: authOperation('Users', 'Voir les récompenses Foi', { parameters: [idParam()] }),
     },
+    '/users/{id}/devices': {
+      get: authOperation('Users', 'Lister les appareils d’un utilisateur gérable', { parameters: [idParam()] }),
+    },
     '/users/{id}/role': {
       put: authOperation('Users', 'Changer le rôle communautaire utilisateur (admin ou superadmin)', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['role'], properties: { role: { type: 'string', enum: ['peuple', 'constellation', 'tornades', 'tour', 'batview'] } } }) }),
     },
@@ -304,11 +317,17 @@ const openApiSpec = {
     '/users/{id}/ban': {
       put: authOperation('Users', 'Bannir ou débannir un utilisateur', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', properties: { ban: { type: 'boolean', default: true } } }) }),
     },
+    '/users/{id}/temporary-block': {
+      put: authOperation('Users', 'Bloquer temporairement un utilisateur ou lever le blocage', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['until'], properties: { until: { type: 'string', format: 'date-time', nullable: true, description: 'Date de fin; null pour lever le blocage' }, reason: { type: 'string' } } }) }),
+    },
+    '/users/{id}/restrictions': {
+      put: authOperation('Users', 'Restreindre les accès utilisateur', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['restrictions'], properties: { restrictions: { type: 'object', properties: { posts: { type: 'boolean' }, comments: { type: 'boolean' }, messages: { type: 'boolean' }, groups: { type: 'boolean' } } }, reason: { type: 'string' } } }) }),
+    },
     '/users/{id}/reward': {
       post: authOperation('Users', 'Attribuer des points Foi', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['montant'], properties: { montant: { type: 'integer', minimum: 1 }, motif: { type: 'string' } } }) }),
     },
     '/users/{id}/admin': {
-      delete: authOperation('Users', 'Supprimer définitivement un compte (superadmin)', { parameters: [idParam()] }),
+      delete: authOperation('Users', 'Supprimer définitivement un compte gérable (admin ou superadmin)', { parameters: [idParam()] }),
     },
     '/posts': {
       get: authOperation('Posts', 'Lister le feed', { parameters: [...paginationParams, qParam] }),
@@ -433,6 +452,9 @@ const openApiSpec = {
         },
       }),
       delete: authOperation('Media', 'Supprimer un média', { parameters: [idParam()] }),
+    },
+    '/logs/api': {
+      get: authOperation('Logs', 'Consulter le journal d’audit (superadmin)', { parameters: [...paginationParams, { name: 'user_id', in: 'query', schema: { type: 'integer' } }, { name: 'path', in: 'query', schema: { type: 'string' } }] }),
     },
   },
 };

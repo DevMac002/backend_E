@@ -1,9 +1,12 @@
 const bcrypt = require('bcrypt');
-const { User, RoleChangeLog, RewardHistory, Op } = require('../models');
+const { User, UserSession, RoleChangeLog, RewardHistory, ModerationLog, Op } = require('../models');
 const { saveUploadedFile } = require('../utils/file');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 const { canManageUser, isSuperadmin } = require('../utils/permissions');
+const { validateRestrictions } = require('../utils/user-access');
+const { sendVerificationCodeEmail } = require('../utils/email');
+const { generateOtpCode, getOtpExpiration } = require('../utils/otp');
 
 const USER_ROLES = ['peuple', 'constellation', 'tornades', 'tour', 'batview'];
 const USER_STATUSES = ['user', 'admin'];
@@ -28,6 +31,51 @@ async function updateMe(req, res) {
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur' });
   }
+}
+
+async function changeEmail(req, res) {
+  const { email, currentPassword } = req.body;
+  if (!email || !currentPassword) return res.status(400).json({ message: 'Email et mot de passe actuel requis' });
+  if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Email invalide' });
+  const validPassword = await bcrypt.compare(currentPassword, req.user.password_hash);
+  if (!validPassword) return res.status(401).json({ message: 'Mot de passe actuel invalide' });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+  if (existingUser && existingUser.id !== req.user.id) return res.status(409).json({ message: 'Cet email est déjà utilisé' });
+  const code = generateOtpCode();
+  await req.user.update({
+    email: normalizedEmail,
+    is_verified: false,
+    verification_code: code,
+    verification_code_expires_at: getOtpExpiration(10),
+    verification_attempts: 0,
+  });
+  try {
+    await sendVerificationCodeEmail(normalizedEmail, code);
+  } catch (error) {
+    return res.status(502).json({ message: 'Email modifié, mais le code de vérification n’a pas pu être envoyé' });
+  }
+  res.json({ message: 'Email modifié. Vérifiez la nouvelle adresse avec le code envoyé.' });
+}
+
+async function listMyDevices(req, res) {
+  const devices = await UserSession.findAll({ where: { user_id: req.user.id }, order: [['last_seen_at', 'DESC']] });
+  res.json(devices);
+}
+
+async function revokeMyDevice(req, res) {
+  const session = await UserSession.findOne({ where: { id: req.params.sessionId, user_id: req.user.id } });
+  if (!session) return res.status(404).json({ message: 'Appareil introuvable' });
+  await session.update({ revoked_at: new Date() });
+  res.json({ message: 'Appareil déconnecté' });
+}
+
+async function listUserDevices(req, res) {
+  const targetUser = await User.findByPk(req.params.id);
+  if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+  const devices = await UserSession.findAll({ where: { user_id: targetUser.id }, order: [['last_seen_at', 'DESC']] });
+  res.json(devices);
 }
 
 async function listUsers(req, res) {
@@ -118,10 +166,42 @@ async function banUser(req, res) {
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
   if (denyProtectedUserAction(req, res, targetUser)) return;
   await targetUser.update({ is_banned: req.body.ban !== false });
+  await ModerationLog.create({ user_id: targetUser.id, admin_id: req.user.id, action: targetUser.is_banned ? 'ban' : 'unban', reason: req.body.reason || null });
   if (isRealtimeEnabled) {
     await triggerRealtimeEvent(`private-user-${targetUser.id}`, 'user:ban_updated', { userId: targetUser.id, banned: targetUser.is_banned });
   }
   res.json({ message: targetUser.is_banned ? 'Utilisateur banni' : 'Utilisateur débanni' });
+}
+
+async function temporaryBlockUser(req, res) {
+  const targetUser = await User.findByPk(req.params.id);
+  if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+
+  if (req.body.until === null) {
+    await targetUser.update({ blocked_until: null, block_reason: null });
+    await ModerationLog.create({ user_id: targetUser.id, admin_id: req.user.id, action: 'temporary_block_removed', reason: req.body.reason || null });
+    return res.json({ message: 'Blocage temporaire retiré', user: targetUser });
+  }
+
+  const until = new Date(req.body.until);
+  if (!req.body.until || Number.isNaN(until.getTime()) || until <= new Date()) {
+    return res.status(400).json({ message: 'La date de fin du blocage doit être dans le futur' });
+  }
+  await targetUser.update({ blocked_until: until, block_reason: req.body.reason || null });
+  await ModerationLog.create({ user_id: targetUser.id, admin_id: req.user.id, action: 'temporary_block', reason: req.body.reason || null, expires_at: until });
+  res.json({ message: 'Utilisateur bloqué temporairement', user: targetUser });
+}
+
+async function updateUserRestrictions(req, res) {
+  const targetUser = await User.findByPk(req.params.id);
+  if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  if (denyProtectedUserAction(req, res, targetUser)) return;
+  const restrictions = validateRestrictions(req.body.restrictions);
+  if (!restrictions) return res.status(400).json({ message: 'Restrictions invalides. Utilisez posts, comments, messages et groups avec des booléens.' });
+  await targetUser.update({ access_restrictions: restrictions });
+  await ModerationLog.create({ user_id: targetUser.id, admin_id: req.user.id, action: 'access_restrictions_updated', reason: req.body.reason || null, metadata: { restrictions } });
+  res.json({ message: 'Restrictions mises à jour', restrictions });
 }
 
 async function rewardUser(req, res) {
@@ -132,14 +212,15 @@ async function rewardUser(req, res) {
   if (!Number.isInteger(montant) || montant <= 0) return res.status(400).json({ message: 'Le montant doit être un entier positif' });
   await targetUser.update({ foi_points: targetUser.foi_points + montant });
   await RewardHistory.create({ user_id: targetUser.id, admin_id: req.user.id, montant, motif: req.body.motif || 'Récompense' });
+  await ModerationLog.create({ user_id: targetUser.id, admin_id: req.user.id, action: 'foi_reward', reason: req.body.motif || null, metadata: { montant } });
   res.json({ message: 'Récompense attribuée', user: targetUser });
 }
 
 async function adminDeleteUser(req, res) {
-  if (!isSuperadmin(req.user)) return res.status(403).json({ message: 'Seul un superadmin peut supprimer un compte' });
   const targetUser = await User.findByPk(req.params.id);
   if (!targetUser) return res.status(404).json({ message: 'Utilisateur introuvable' });
   if (denyProtectedUserAction(req, res, targetUser)) return;
+  await ModerationLog.create({ user_id: targetUser.id, admin_id: req.user.id, action: 'account_deleted' });
   await targetUser.destroy();
   res.json({ message: 'Compte supprimé par un superadmin' });
 }
@@ -160,4 +241,4 @@ async function getRoleLogs(req, res) {
   res.json(logs);
 }
 
-module.exports = { getMe, updateMe, listUsers, getUserById, uploadAvatar, deleteMe, updateUserRole, updateUserStatus, banUser, rewardUser, adminDeleteUser, getUserRewards, getLeaderboard, getRoleLogs };
+module.exports = { getMe, updateMe, changeEmail, listMyDevices, revokeMyDevice, listUserDevices, listUsers, getUserById, uploadAvatar, deleteMe, updateUserRole, updateUserStatus, banUser, temporaryBlockUser, updateUserRestrictions, rewardUser, adminDeleteUser, getUserRewards, getLeaderboard, getRoleLogs };
