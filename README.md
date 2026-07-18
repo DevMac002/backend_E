@@ -108,6 +108,16 @@ npm run dev
 npm start
 ```
 
+### Migration de la base de données
+
+En production, lancez la migration avant le démarrage (Render l’exécute maintenant automatiquement) :
+
+```bash
+npm run db:migrate
+```
+
+Elle crée notamment `audit_logs`, indispensable à la page publique `/logs`.
+
 Le serveur démarre ensuite sur :
 ```text
 http://localhost:3000

@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "db:migrate": "node migrations/20260718-apply-security-schema.js",
     "test": "jest --runInBand",
     "test:watch": "jest --watch"
   },

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const postRoutes = require('./routes/post.routes');
@@ -23,8 +24,43 @@ const app = express();
 // This lets express-rate-limit trust X-Forwarded-For without rejecting requests.
 app.set('trust proxy', 1);
 
-app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
+// A nonce keeps the public /logs page compatible with a strict CSP without
+// enabling unsafe-inline for every other response.
+app.use((req, res, next) => {
+  res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
+
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Native apps, curl and same-origin browser calls do not send Origin.
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origine non autorisée par CORS'));
+  },
+  credentials: true,
+};
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`],
+      styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+}));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,5 +89,16 @@ app.use('/admin', adminRoutes);
 app.use('/media', mediaRoutes);
 app.use('/docs', swaggerRoutes);
 app.use('/logs', logsRoutes);
+
+app.use((error, _req, res, _next) => {
+  if (error?.message === 'Origine non autorisée par CORS') {
+    return res.status(403).json({ message: 'Origine non autorisée' });
+  }
+  if (error?.name === 'MulterError') {
+    return res.status(400).json({ message: 'Fichier invalide ou trop volumineux' });
+  }
+  console.error('Unhandled request error:', error);
+  return res.status(500).json({ message: 'Erreur serveur' });
+});
 
 module.exports = { app };

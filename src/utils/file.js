@@ -12,15 +12,15 @@ async function saveUploadedFile(file, ownerId = null, type = 'generic') {
     throw new Error('Le fichier dépasse la taille maximale de 4 Mo');
   }
 
-  const ext = file.originalname ? file.originalname.split('.').pop().toLowerCase() : 'bin';
-  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${ext}`;
-  let dataBuffer = file.buffer;
-  let mimeType = file.mimetype || 'application/octet-stream';
-
-  if (file.mimetype.startsWith('image/')) {
-    dataBuffer = await sharp(file.buffer).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
-    mimeType = 'image/jpeg';
-  }
+  // Images are decoded and re-encoded, which validates their actual content
+  // instead of trusting a browser-supplied MIME type or extension.
+  const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}.jpg`;
+  const dataBuffer = await sharp(file.buffer, { limitInputPixels: 40_000_000 })
+    .rotate()
+    .resize({ width: 1200, withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+  const mimeType = 'image/jpeg';
 
   const media = await Media.create({
     filename,

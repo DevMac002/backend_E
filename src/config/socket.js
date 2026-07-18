@@ -5,10 +5,35 @@ const { isTemporaryBlockActive } = require('../utils/user-access');
 const { validateSession } = require('../utils/sessions');
 
 let io;
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function isAllowedSocketRequest(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch (_error) {
+    return false;
+  }
+}
 
 function initSocket(server) {
   io = new Server(server, {
-    cors: { origin: true, credentials: true },
+    cors: {
+      origin: allowedOrigins.length ? allowedOrigins : true,
+      credentials: true,
+    },
+    allowRequest(req, callback) {
+      callback(null, isAllowedSocketRequest(req));
+    },
+  });
+
+  io.of('/logs-realtime').on('connection', (socket) => {
+    socket.join('public:audit-logs');
   });
 
   io.use(async (socket, next) => {
@@ -31,26 +56,15 @@ function initSocket(server) {
     socket.join(`user:${userId}`);
     socket.broadcast.emit('presence:online', { userId });
 
-    socket.on('message:send', (payload) => {
-      io.to(`user:${userId}`).emit('message:receive', { ...payload, senderId: userId });
-    });
-
-    socket.on('post:new', (payload) => {
-      io.emit('post:new', payload);
-    });
-
-    socket.on('notification:new', (payload) => {
-      io.emit('notification:new', payload);
-    });
-
-    socket.on('poll:vote_update', (payload) => {
-      io.emit('poll:vote_update', payload);
-    });
-
     socket.on('disconnect', () => {
       socket.broadcast.emit('presence:offline', { userId });
     });
   });
 }
 
-module.exports = { initSocket, getIo: () => io };
+function emitAuditLog(entry) {
+  if (!io) return;
+  io.of('/logs-realtime').to('public:audit-logs').emit('audit:created', entry);
+}
+
+module.exports = { initSocket, getIo: () => io, emitAuditLog };

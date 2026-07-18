@@ -11,6 +11,7 @@ router.get('/:id', async (req, res) => {
   res.set('Content-Type', media.mime_type);
   res.set('Content-Length', String(media.size));
   res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  res.set('X-Content-Type-Options', 'nosniff');
   const safeName = String(media.original_name || media.filename).replace(/[\r\n"\\]/g, '_');
   res.set('Content-Disposition', `inline; filename="${safeName}"`);
   res.send(media.data);

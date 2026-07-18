@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
-const { User, RoleChangeLog } = require('../models');
+const { User, UserSession, RoleChangeLog } = require('../models');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireNotBanned } = require('../middlewares/status.middleware');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../utils/token');
@@ -15,11 +15,15 @@ const router = express.Router();
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
+const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
+const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+
+const passwordRule = Joi.string().min(8).max(72).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/);
 
 const registerSchema = Joi.object({
   username: Joi.string().min(3).max(30).pattern(/^[a-zA-Z0-9_]+$/).required(),
   email: Joi.string().email().required(),
-  password: Joi.string().min(8).max(72).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/).required(),
+  password: passwordRule.required(),
   device: Joi.string().min(2).max(100).required(),
 });
 
@@ -30,12 +34,12 @@ const forgotPasswordSchema = Joi.object({
 const resetPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
   code: Joi.string().length(6).required(),
-  newPassword: Joi.string().min(6).required(),
+  newPassword: passwordRule.required(),
 });
 
 const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
-  newPassword: Joi.string().min(6).required(),
+  newPassword: passwordRule.required(),
 });
 
 router.post('/register', registerLimiter, async (req, res) => {
@@ -99,7 +103,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { value, error } = forgotPasswordSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.message });
@@ -126,7 +130,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   try {
     const { value, error } = resetPasswordSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.message });
@@ -155,6 +159,7 @@ router.post('/reset-password', async (req, res) => {
       password_reset_code_expires_at: null,
       password_reset_attempts: 0,
     });
+    await UserSession.update({ revoked_at: new Date() }, { where: { user_id: user.id, revoked_at: null } });
 
     try {
       await sendPasswordChangedEmail(user);
@@ -191,7 +196,7 @@ router.post('/change-password', authMiddleware, requireNotBanned, async (req, re
   }
 });
 
-router.post('/send-verification-code', async (req, res) => {
+router.post('/send-verification-code', otpLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email requis' });
@@ -213,7 +218,7 @@ router.post('/send-verification-code', async (req, res) => {
   }
 });
 
-router.post('/verify-email', async (req, res) => {
+router.post('/verify-email', otpLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ message: 'Email et code requis' });
@@ -280,6 +285,17 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-router.post('/logout', (_req, res) => res.json({ message: 'Déconnecté' }));
+router.post('/logout', async (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (refreshToken) {
+    try {
+      const decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
+      if (decoded.sid) await UserSession.update({ revoked_at: new Date() }, { where: { id: decoded.sid, user_id: decoded.id, revoked_at: null } });
+    } catch (_error) {
+      // Logout is deliberately idempotent and must not disclose token details.
+    }
+  }
+  res.json({ message: 'Déconnecté' });
+});
 
 module.exports = router;

@@ -26,7 +26,23 @@ async function getMe(req, res) {
 async function updateMe(req, res) {
   try {
     const { username, bio } = req.body;
-    await req.user.update({ username, bio });
+    const changes = {};
+    if (username !== undefined) {
+      const normalizedUsername = String(username).trim();
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(normalizedUsername)) {
+        return res.status(400).json({ message: 'Nom d’utilisateur invalide' });
+      }
+      const existingUser = await User.findOne({ where: { username: normalizedUsername } });
+      if (existingUser && existingUser.id !== req.user.id) {
+        return res.status(409).json({ message: 'Ce nom d’utilisateur est déjà utilisé' });
+      }
+      changes.username = normalizedUsername;
+    }
+    if (bio !== undefined) {
+      if (typeof bio !== 'string' || bio.length > 500) return res.status(400).json({ message: 'Biographie invalide (500 caractères maximum)' });
+      changes.bio = bio.trim();
+    }
+    await req.user.update(changes);
     res.json(req.user);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur' });
