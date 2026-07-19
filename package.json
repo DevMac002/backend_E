@@ -10,6 +10,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "db:migrate": "node migrations/20260718-apply-security-schema.js",
+    "build:webapp": "cd web-app && npm ci && npm run build",
+    "build": "npm run build:webapp",
     "test": "jest --runInBand",
     "test:watch": "jest --watch"
   },

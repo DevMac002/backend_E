@@ -462,6 +462,10 @@ Importez le fichier principal :
 Vous pouvez également utiliser la collection plus légère dédiée à l’authentification OTP :
 - [postman/epika-social-auth-otp.postman_collection.json](postman/epika-social-auth-otp.postman_collection.json)
 
+La documentation interactive est disponible sur `/docs`, et la spécification OpenAPI est accessible via `/docs/openapi.json`.
+
+Le fichier `instruction.md` contient également une section dédiée à la version Web App pour les rôles Admin et Utilisateur.
+
 Ordre recommandé des appels pour le flux complet :
 1. Health
 2. Register

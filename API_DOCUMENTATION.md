@@ -200,6 +200,26 @@ Mark a notification as read.
 ### PUT /notifications/read-all
 Mark all notifications as read.
 
+## Web App - Vues utilisateur et administrateur
+
+### Vue Utilisateur
+- Feed principal avec posts et contenus accessibles.
+- Création de publications, commentaires, likes, sondages et quiz.
+- Espace Groupes pour rejoindre, découvrir, voir les membres et quitter un groupe.
+- Messagerie privée avec conversations et marquage de lecture.
+- Centre de notifications avec liste paginée, lecture individuelle et lecture en masse.
+- Profil utilisateur avec gestion du compte, avatar, email et sessions connectées.
+
+### Vue Administrateur
+- Tableau de bord de supervision avec statistiques d’usage et croissance.
+- Gestion des utilisateurs : consultation, rôle, statut, bannissement, blocage temporaire et restrictions.
+- Journal d’administration pour suivre les actions de modération et les changements de statut.
+- Gestion des contenus : suppression des posts, commentaires et médias inappropriés.
+- Supervision des groupes et de leurs membres.
+
+### Note de disponibilité
+La documentation reflète l’API actuelle exposée par le backend. Certaines fonctionnalités telles que les stories éphémères et les codes d’invitation de groupe sont décrites dans la feuille de route, mais ne sont pas encore disponibles sous forme de routes publiques déployées.
+
 ### DELETE /notifications/:id
 Delete a notification.
 

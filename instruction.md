@@ -27,6 +27,92 @@ curl http://localhost:3000/health
 { "status": "ok", "service": "epika-social" }
 ```
 
+## Déploiement sur Render
+
+Le projet est conçu pour être déployé comme un seul service Node.js sur Render. Le backend Express sert également le front-end React compilé depuis `web-app/dist`, de sorte que l’URL Render devient à la fois l’API et l’application officielle.
+
+### Configuration Render
+
+- Service : `web`
+- Runtime : `node`
+- Commande de build : `npm ci && npm run db:migrate && npm run build`
+- Commande de démarrage : `npm start`
+- Health check : `/health`
+
+Le fichier `render.yaml` doit contenir une définition similaire à ceci :
+
+```yaml
+services:
+  - type: web
+    name: epika-social-api
+    runtime: node
+    buildCommand: npm ci && npm run db:migrate && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20
+      - key: DB_DIALECT
+        value: mariadb
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+```
+
+### Variables d’environnement essentielles
+
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL`
+- `JWT_SECRET`, `JWT_REFRESH_SECRET`
+- `CORS_ORIGINS` : liste des origines autorisées pour les appels API/quadruples, ou vide pour accepter uniquement les requêtes sans origin (même origine)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
+### Points importants
+
+- Le build `npm run build` génère le front-end dans `web-app/dist` via le script racine `build:webapp`.
+- L’application React est servie par Express si `web-app/dist/index.html` existe.
+- Les API restent disponibles sous les chemins `/auth`, `/users`, `/posts`, `/groups`, `/messages`, `/notifications`, `/search`, `/admin`, `/media`, `/docs`, `/logs`.
+- La racine `/` renvoie l’application web publique.
+
+### Déploiement rapide
+
+1. Pousser le repo sur GitHub.
+2. Connecter le repo à Render.
+3. Choisir le service `web` et le runtime `Node.js`.
+4. Définir les variables d’environnement requises.
+5. Lancer le déploiement.
+
+Lorsque Render a fini de construire, l’URL de production héberge la SPA React sur `/` et l’API sur les mêmes chemins.
+
 Variables principales :
 
 ```env
@@ -634,6 +720,31 @@ Via Socket.IO avec authentification JWT :
 - `poll:vote_update` — Vote sur un sondage.
 
 Les événements Pusher (si `PUSHER_ENABLED=true`) incluent aussi les changements d'administration : `user:role_updated`, `user:status_updated`, `user:ban_updated`, `group:member_added` et `story:new`.
+
+## Version Web App
+
+### Vue Utilisateur
+- Feed principal avec découverte de contenus, likes, commentaires et réponses à des quiz/sondages.
+- Écran de création de publication avec envoi de texte, image ou média via `multipart/form-data`.
+- Page Groupes pour rechercher, découvrir, rejoindre et quitter des groupes.
+- Messagerie privée avec listes de conversations, lecture des messages et envoi de nouveaux messages.
+- Centre de notifications avec lecture individuelle, marquage comme lu et suppression.
+- Profil personnel avec gestion du compte, avatar, email, mot de passe et sessions actives.
+
+### Vue Administrateur
+- Tableau de bord avec statistiques, croissance des inscriptions et valeurs agrégées de l’activité.
+- Gestion des utilisateurs : recherche, consultation, changement de rôle communautaire, bannissement, blocage temporaire et restrictions.
+- Outils de modération pour supprimer des publications, des commentaires et des médias inappropriés.
+- Supervision des groupes et des membres, avec la possibilité de gérer ou fermer des groupes.
+- Accès à l’historique des logs pour suivre les actions réalisées par les administrateurs et superadministrateurs.
+
+### Rôles et navigation Web
+- Les utilisateurs réguliers voient un menu orienté vers le feed, les messages, les groupes, leur profil et les notifications.
+- Les administrateurs voient un menu supplémentaire pour l’administration des utilisateurs, les statistiques et les logs.
+- Les superadministrateurs ont accès aux mêmes écrans que les administrateurs, avec des droits supplémentaires de gestion de statut.
+
+### Fonctionnalités planifiées
+- Les stories éphémères et les codes d’invitation de groupe sont décrits comme des concepts fonctionnels dans ce document. Ils ne sont pas encore exposés via des routes publiques sur l’API actuelle.
 
 ### Détails d'implémentation
 - Une action protégée est refusée aux comptes bannis.

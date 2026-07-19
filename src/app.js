@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const postRoutes = require('./routes/post.routes');
@@ -89,6 +91,36 @@ app.use('/admin', adminRoutes);
 app.use('/media', mediaRoutes);
 app.use('/docs', swaggerRoutes);
 app.use('/logs', logsRoutes);
+
+const webAppDist = path.join(__dirname, '..', 'web-app', 'dist');
+const webAppIndex = path.join(webAppDist, 'index.html');
+
+if (fs.existsSync(webAppDist) && fs.existsSync(webAppIndex)) {
+  app.use(express.static(webAppDist));
+
+  app.get('*', (req, res, next) => {
+    const apiPrefixes = [
+      '/auth',
+      '/users',
+      '/posts',
+      '/groups',
+      '/messages',
+      '/notifications',
+      '/search',
+      '/admin',
+      '/media',
+      '/docs',
+      '/logs',
+      '/health',
+    ];
+
+    if (apiPrefixes.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {
+      return next();
+    }
+
+    return res.sendFile(webAppIndex);
+  });
+}
 
 app.use((error, _req, res, _next) => {
   if (error?.message === 'Origine non autorisée par CORS') {

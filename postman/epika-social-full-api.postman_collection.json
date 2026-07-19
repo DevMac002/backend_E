@@ -326,6 +326,30 @@
           }
         },
         {
+          "name": "List My Devices",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me", "devices"]
+            }
+          }
+        },
+        {
+          "name": "Revoke Device Session",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/devices/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me", "devices", "{{sessionId}}"]
+            }
+          }
+        },
+        {
           "name": "Change User Role",
           "request": {
             "method": "PUT",
@@ -475,6 +499,37 @@
           }
         },
         {
+          "name": "Update Post",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Contenu mis à jour\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}"]
+            }
+          }
+        },
+        {
           "name": "Like Post",
           "request": {
             "method": "POST",
@@ -538,6 +593,18 @@
               "raw": "{{baseUrl}}/posts/{{postId}}/comments",
               "host": ["{{baseUrl}}"],
               "path": ["posts", "{{postId}}", "comments"]
+            }
+          }
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/posts/{{postId}}/comments/{{commentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["posts", "{{postId}}", "comments", "{{commentId}}"]
             }
           }
         },
@@ -722,6 +789,49 @@
               "raw": "{{baseUrl}}/groups/{{groupId}}/leave",
               "host": ["{{baseUrl}}"],
               "path": ["groups", "{{groupId}}", "leave"]
+            }
+          }
+        },
+        {
+          "name": "Delete Group",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["groups", "{{groupId}}"]
+            }
+          }
+        },
+        {
+          "name": "Remove Group Member",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}/members/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["groups", "{{groupId}}", "members", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Group Member Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_in_group\": \"moderateur\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}/members/{{userId}}/role",
+              "host": ["{{baseUrl}}"],
+              "path": ["groups", "{{groupId}}", "members", "{{userId}}", "role"]
             }
           }
         }

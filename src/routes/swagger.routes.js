@@ -134,6 +134,34 @@ const openApiSpec = {
           message: { type: 'string' },
         },
       },
+      NotificationItem: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          type: { type: 'string' },
+          content: { type: 'string' },
+          isRead: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      PaginatedNotifications: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/NotificationItem' },
+          },
+          pagination: {
+            type: 'object',
+            properties: {
+              page: { type: 'integer' },
+              limit: { type: 'integer' },
+              total: { type: 'integer' },
+              pages: { type: 'integer' },
+            },
+          },
+        },
+      },
       RegisterInput: {
         type: 'object',
         required: ['username', 'email', 'password', 'device'],
@@ -411,7 +439,22 @@ const openApiSpec = {
       put: authOperation('Messages', 'Marquer une conversation comme lue', { parameters: [idParam('conversationId', 'Identifiant de conversation')] }),
     },
     '/notifications': {
-      get: authOperation('Notifications', 'Lister mes notifications', { parameters: paginationParams }),
+      get: authOperation('Notifications', 'Lister mes notifications', {
+        parameters: paginationParams,
+        responses: {
+          200: {
+            description: 'Liste paginée de notifications',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/PaginatedNotifications' },
+              },
+            },
+          },
+          401: messageResponse,
+          403: messageResponse,
+          500: messageResponse,
+        },
+      }),
     },
     '/notifications/unread-count': {
       get: authOperation('Notifications', 'Nombre de notifications non lues'),
