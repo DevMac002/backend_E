@@ -125,7 +125,7 @@ export default function SideBar({ unreadCount = 0 }) {
         <button
           type="button"
           onClick={logout}
-          className="sidebar-link btn-danger"
+          className="sidebar-link btn-danger logout-btn"
           style={{ marginTop: 4 }}
         >
           <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>

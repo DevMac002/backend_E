@@ -1854,8 +1854,22 @@ p { margin: 0; }
   .login-branding { display: none; }
   .landing-hero { padding: 60px 20px; }
   .landing-features { padding: 60px 20px; }
-  .hero-stats { gap: 28px; }
+  .hero-stats { gap: 28px; flex-direction: column; }
   .messages-layout { grid-template-columns: 1fr; }
   .conversation-list { display: none; }
   .landing-nav { padding: 16px 20px; }
+
+  /* Extra Responsive Fixes for Pages */
+  .profile-header { flex-direction: column; align-items: center; text-align: center; }
+  .profile-stats { justify-content: center; margin-top: 10px; }
+  .profile-cover { height: 150px; }
+  .profile-info { margin-top: -50px; }
+  
+  .admin-dashboard { grid-template-columns: 1fr; }
+  .admin-stats { grid-template-columns: 1fr; }
+  
+  .groups-grid { grid-template-columns: 1fr; }
+  
+  .toast-container { right: 50%; transform: translateX(50%); bottom: 80px; width: 90%; }
+  .toast { width: 100%; min-width: unset; }
 }
