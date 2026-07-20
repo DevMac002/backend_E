@@ -20,12 +20,12 @@ export default function Login() {
 
     try {
       if (isLogin) {
-        await login(formData.email, formData.password);
+        await login(formData.email, formData.password, 'web');
         navigate('/app');
       } else {
         const api = (await import('../api')).default;
-        await api.post('/users/register', formData);
-        await login(formData.email, formData.password);
+        await api.post('/users/register', { ...formData, device: 'web' });
+        await login(formData.email, formData.password, 'web');
         navigate('/app');
       }
     } catch (err) {
