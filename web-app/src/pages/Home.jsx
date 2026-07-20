@@ -1,40 +1,186 @@
 import { useAuth } from '../hooks/useAuth';
+import { Link } from 'react-router-dom';
+import ToastContainer from '../components/Toast';
+
+const FEATURES = [
+  {
+    icon: '🙏',
+    bg: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(168,85,247,0.15))',
+    title: 'Communauté Chrétienne',
+    desc: 'Partagez témoignages, prières et louanges dans un espace bienveillant et sécurisé.',
+  },
+  {
+    icon: '💬',
+    bg: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(251,191,36,0.1))',
+    title: 'Messagerie Instantanée',
+    desc: 'Discutez en privé ou en groupe avec les membres de votre communauté.',
+  },
+  {
+    icon: '👥',
+    bg: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(52,211,153,0.1))',
+    title: 'Groupes & Cercles',
+    desc: 'Rejoignez des groupes thématiques — Bible, Prière, Louange, Jeunes, Famille.',
+  },
+  {
+    icon: '🔔',
+    bg: 'linear-gradient(135deg, rgba(239,68,68,0.2), rgba(248,113,113,0.1))',
+    title: 'Notifications Temps Réel',
+    desc: 'Ne manquez jamais une mention, un commentaire ou un événement communautaire.',
+  },
+  {
+    icon: '🛡️',
+    bg: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(96,165,250,0.1))',
+    title: 'Modération Avancée',
+    desc: 'Tableau d\'administration complet pour maintenir un environnement sain.',
+  },
+  {
+    icon: '📱',
+    bg: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(245,158,11,0.1))',
+    title: 'Multiplateforme',
+    desc: 'Disponible sur Web, iOS et Android — votre communauté partout avec vous.',
+  },
+];
+
+const STATS = [
+  { value: '10k+', label: 'Membres actifs' },
+  { value: '50k+', label: 'Publications' },
+  { value: '200+', label: 'Groupes' },
+  { value: '99%', label: 'Satisfaction' },
+];
 
 export default function Home() {
   const { user, loading } = useAuth();
 
   return (
-    <div className="page home-page">
-      <section className="hero">
-        <span className="eyebrow">Application Web</span>
-        <h1>Epika Social — votre réseau communautaire moderne</h1>
-        <p>Un espace sécurisé pour partager des publications, rejoindre des groupes, discuter et suivre l’actualité de la communauté.</p>
-        <div className="home-actions">
-          {loading ? (
-            <p>Chargement...</p>
-          ) : user ? (
-            <a href="/app" className="button button-primary">Accéder au feed</a>
+    <div className="landing-page">
+      {/* Nav */}
+      <nav className="landing-nav" role="navigation" aria-label="Navigation principale">
+        <div className="landing-logo">
+          <div className="landing-logo-icon">✦</div>
+          Epika Social
+        </div>
+        <div className="landing-nav-actions">
+          <a href="/docs" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
+            API Docs
+          </a>
+          {loading ? null : user ? (
+            <Link to="/app" className="btn btn-primary btn-sm">
+              Accéder au feed
+            </Link>
           ) : (
-            <a href="/login" className="button button-primary">Se connecter</a>
+            <Link to="/login" className="btn btn-primary btn-sm">
+              Se connecter
+            </Link>
           )}
-          <a href="/docs" target="_blank" rel="noopener noreferrer" className="button button-secondary">Voir la documentation API</a>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="landing-hero" aria-labelledby="hero-title">
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 800, margin: '0 auto' }}>
+          <div className="hero-eyebrow">
+            <span>✦</span>
+            <span>Réseau Social Chrétien</span>
+            <span>✦</span>
+          </div>
+
+          <h1 id="hero-title" className="hero-title">
+            Connectez-vous,<br />
+            <span className="hero-title-gradient">Grandissez ensemble</span>
+          </h1>
+
+          <p className="hero-subtitle">
+            Epika Social est le réseau communautaire chrétien moderne — partagez votre foi,
+            rejoignez des groupes et construisez des liens authentiques dans la bienveillance.
+          </p>
+
+          <div className="hero-actions">
+            {loading ? (
+              <div className="splash-spinner" />
+            ) : user ? (
+              <>
+                <Link to="/app" className="btn btn-primary btn-xl">
+                  ✦ Accéder au feed
+                </Link>
+                <Link to="/groups" className="btn btn-ghost btn-xl">
+                  Voir les groupes
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn btn-primary btn-xl" id="cta-login">
+                  ✦ Rejoindre la communauté
+                </Link>
+                <a href="/docs" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xl">
+                  Documentation API
+                </a>
+              </>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="hero-stats" role="list">
+            {STATS.map((s) => (
+              <div key={s.label} role="listitem" style={{ textAlign: 'center' }}>
+                <div className="hero-stat-value">{s.value}</div>
+                <div className="hero-stat-label">{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="feature-grid">
-        <div className="feature-card">
-          <h2>Engagez votre communauté</h2>
-          <p>Publiez des messages, réagissez aux posts et suivez les discussions de groupes en temps réel.</p>
-        </div>
-        <div className="feature-card">
-          <h2>Administration simplifiée</h2>
-          <p>Tableau admin dédié pour gérer les utilisateurs, les contenus et les paramètres de la communauté.</p>
-        </div>
-        <div className="feature-card">
-          <h2>Documentation API</h2>
-          <p>Accédez aux routes backend, aux schémas et aux exemples directement depuis le service.</p>
+      {/* Features */}
+      <section className="landing-features" aria-labelledby="features-title">
+        <h2 id="features-title" className="features-title">
+          Tout ce dont votre communauté a besoin
+        </h2>
+        <div className="features-grid">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="feature-item">
+              <div className="feature-icon" style={{ background: f.bg }}>
+                {f.icon}
+              </div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
+
+      {/* CTA Banner */}
+      <section style={{
+        padding: '60px 40px',
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(245,158,11,0.06) 100%)',
+        borderTop: '1px solid var(--border)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 20 }}>✝️</div>
+          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 16 }}>
+            Prêt à rejoindre la famille ?
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: '0.95rem' }}>
+            Des milliers de chrétiens partagent déjà leur foi sur Epika Social. Rejoignez-les aujourd'hui.
+          </p>
+          {!user && (
+            <Link to="/login" className="btn btn-gold btn-xl">
+              🙏 Commencer gratuitement
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="landing-footer" role="contentinfo">
+        <p>
+          Epika Social — Réseau Communautaire Chrétien · © {new Date().getFullYear()} ·{' '}
+          <a href="/docs" style={{ color: 'var(--primary-light)' }}>API Documentation</a>
+        </p>
+      </footer>
+
+      <ToastContainer />
     </div>
   );
 }
