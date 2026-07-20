@@ -3,12 +3,13 @@ import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { StatsSkeleton } from '../components/LoadingSkeleton';
 import { useAuth } from '../hooks/useAuth';
+import { Users, FileText, UsersRound, MessageSquare, ShieldCheck, LayoutDashboard, ScrollText, AlertCircle } from 'lucide-react';
 
 const STAT_CONFIGS = [
-  { key: 'total_users',    label: 'Utilisateurs', icon: '👤', iconBg: 'linear-gradient(135deg,#7C3AED,#A855F7)' },
-  { key: 'total_posts',   label: 'Publications',  icon: '📝', iconBg: 'linear-gradient(135deg,#F59E0B,#F97316)' },
-  { key: 'total_groups',  label: 'Groupes',       icon: '👥', iconBg: 'linear-gradient(135deg,#10B981,#34D399)' },
-  { key: 'total_messages',label: 'Messages',      icon: '💬', iconBg: 'linear-gradient(135deg,#3B82F6,#60A5FA)' },
+  { key: 'total_users',    label: 'Utilisateurs', icon: <Users size={24} color="white" />, iconBg: 'linear-gradient(135deg,#7C3AED,#A855F7)' },
+  { key: 'total_posts',   label: 'Publications',  icon: <FileText size={24} color="white" />, iconBg: 'linear-gradient(135deg,#F59E0B,#F97316)' },
+  { key: 'total_groups',  label: 'Groupes',       icon: <UsersRound size={24} color="white" />, iconBg: 'linear-gradient(135deg,#10B981,#34D399)' },
+  { key: 'total_messages',label: 'Messages',      icon: <MessageSquare size={24} color="white" />, iconBg: 'linear-gradient(135deg,#3B82F6,#60A5FA)' },
 ];
 
 function formatNum(n) {
@@ -48,8 +49,8 @@ export default function AdminPanel() {
   }, []);
 
   const TABS = [
-    { id: 'overview', label: '📊 Vue d\'ensemble' },
-    { id: 'logs',     label: '📋 Logs de modération' },
+    { id: 'overview', label: <><LayoutDashboard size={16} /> Vue d'ensemble</> },
+    { id: 'logs',     label: <><ScrollText size={16} /> Logs de modération</> },
   ];
 
   return (
@@ -65,10 +66,10 @@ export default function AdminPanel() {
             </span>
           </div>
         </div>
-        <span style={{ fontSize: '1.5rem' }}>🛡️</span>
+        <ShieldCheck size={32} color="var(--primary)" />
       </div>
 
-      {error && <div className="error-box"><span>⚠️</span> {error}</div>}
+      {error && <div className="error-box"><AlertCircle size={18} /> {error}</div>}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--glass)', padding: 4, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', width: 'fit-content' }}>
@@ -88,6 +89,9 @@ export default function AdminPanel() {
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               boxShadow: activeTab === tab.id ? 'var(--shadow-sm)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
             {tab.label}
@@ -107,7 +111,7 @@ export default function AdminPanel() {
                   className="stat-card"
                   style={{ animationDelay: `${i * 0.1}s` }}
                 >
-                  <div className="stat-card-icon" style={{ background: cfg.iconBg }}>
+                  <div className="stat-card-icon" style={{ background: cfg.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {cfg.icon}
                   </div>
                   <div className="stat-card-value">{formatNum(stats?.[cfg.key])}</div>
@@ -141,8 +145,8 @@ export default function AdminPanel() {
 
       {activeTab === 'logs' && (
         <div className="admin-section">
-          <div className="admin-section-title">
-            <span>📋</span> Logs de modération
+          <div className="admin-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ScrollText size={18} /> Logs de modération
             <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 400 }}>
               {logs.length} entrée{logs.length !== 1 ? 's' : ''}
             </span>
@@ -160,7 +164,7 @@ export default function AdminPanel() {
             </div>
           ) : logs.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">📋</div>
+              <div className="empty-state-icon"><ScrollText size={40} strokeWidth={1.5} /></div>
               <div className="empty-state-title">Aucun log disponible</div>
               <p className="empty-state-text">Les actions de modération apparaîtront ici.</p>
             </div>

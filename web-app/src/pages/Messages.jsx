@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../hooks/useAuth';
+import { MessageSquare, AlertCircle, Send } from 'lucide-react';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -87,7 +88,7 @@ export default function Messages() {
         <h1 className="page-title">Messages</h1>
       </div>
 
-      {error && <div className="error-box"><span>⚠️</span> {error}</div>}
+      {error && <div className="error-box"><AlertCircle size={18} /> {error}</div>}
 
       <div className="messages-layout">
         {/* Conversation List */}
@@ -107,7 +108,7 @@ export default function Messages() {
             </div>
           ) : conversations.length === 0 ? (
             <div className="empty-state" style={{ padding: 32 }}>
-              <div className="empty-state-icon">💬</div>
+              <div className="empty-state-icon"><MessageSquare size={32} strokeWidth={1.5} /></div>
               <div className="empty-state-title" style={{ fontSize: '0.9rem' }}>Aucune conversation</div>
             </div>
           ) : (
@@ -148,7 +149,7 @@ export default function Messages() {
               <div className="chat-messages">
                 {messages.length === 0 ? (
                   <div className="empty-state">
-                    <div className="empty-state-icon">💬</div>
+                    <div className="empty-state-icon"><MessageSquare size={40} strokeWidth={1.5} /></div>
                     <div className="empty-state-title">Aucun message</div>
                     <p className="empty-state-text">Commencez la conversation !</p>
                   </div>
@@ -189,18 +190,13 @@ export default function Messages() {
                   disabled={!input.trim() || sending}
                   aria-label="Envoyer"
                 >
-                  {sending ? '' : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="22" y1="2" x2="11" y2="13" />
-                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                    </svg>
-                  )}
+                  {sending ? '' : <Send size={18} />}
                 </button>
               </form>
             </>
           ) : (
             <div className="empty-state" style={{ flex: 1 }}>
-              <div className="empty-state-icon">💬</div>
+              <div className="empty-state-icon"><MessageSquare size={48} strokeWidth={1.5} color="var(--primary)" /></div>
               <div className="empty-state-title">Sélectionnez une conversation</div>
               <p className="empty-state-text">Choisissez une conversation dans la liste.</p>
             </div>

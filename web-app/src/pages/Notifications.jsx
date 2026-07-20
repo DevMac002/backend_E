@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../hooks/useAuth';
+import { Heart, MessageSquare, UserPlus, AtSign, Bell, AlertCircle, Check } from 'lucide-react';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -13,11 +14,11 @@ function timeAgo(dateStr) {
 }
 
 const NOTIF_ICONS = {
-  like:     { emoji: '❤️', bg: 'notif-like' },
-  comment:  { emoji: '💬', bg: 'notif-comment' },
-  follow:   { emoji: '👤', bg: 'notif-follow' },
-  mention:  { emoji: '@',  bg: 'notif-mention' },
-  default:  { emoji: '🔔', bg: 'notif-default' },
+  like:     { icon: <Heart size={16} color="white" />, bg: 'notif-like' },
+  comment:  { icon: <MessageSquare size={16} color="white" />, bg: 'notif-comment' },
+  follow:   { icon: <UserPlus size={16} color="white" />, bg: 'notif-follow' },
+  mention:  { icon: <AtSign size={16} color="white" />, bg: 'notif-mention' },
+  default:  { icon: <Bell size={16} color="white" />, bg: 'notif-default' },
 };
 
 function getNotifStyle(type = '') {
@@ -73,12 +74,12 @@ export default function Notifications() {
         </h1>
         {unreadCount > 0 && (
           <button type="button" className="btn btn-ghost btn-sm" onClick={markAllRead}>
-            ✓ Tout marquer lu
+            <Check size={16} /> Tout marquer lu
           </button>
         )}
       </div>
 
-      {error && <div className="error-box"><span>⚠️</span> {error}</div>}
+      {error && <div className="error-box"><AlertCircle size={18} /> {error}</div>}
 
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -94,7 +95,7 @@ export default function Notifications() {
         </div>
       ) : notifications.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🔔</div>
+          <div className="empty-state-icon"><Bell size={40} strokeWidth={1.5} /></div>
           <div className="empty-state-title">Aucune notification</div>
           <p className="empty-state-text">Vous êtes à jour ! Les nouvelles activités apparaîtront ici.</p>
         </div>
@@ -112,8 +113,8 @@ export default function Notifications() {
                 onKeyDown={(e) => e.key === 'Enter' && !notif.isRead && markRead(notif.id)}
                 aria-label={`Notification: ${notif.content || notif.type}`}
               >
-                <div className={`notif-icon ${style.bg}`}>
-                  {style.emoji}
+                <div className={`notif-icon ${style.bg}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {style.icon}
                 </div>
                 <div className="notif-content">
                   <div className="notif-text">

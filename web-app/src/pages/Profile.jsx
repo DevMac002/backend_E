@@ -3,11 +3,12 @@ import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../hooks/useAuth';
 import { ProfileSkeleton, PostSkeleton } from '../components/LoadingSkeleton';
+import { Edit3, ShieldCheck, Mail, Calendar, FileText, AlertCircle, Shield } from 'lucide-react';
 
 const BANNER_GRADIENTS = [
-  'linear-gradient(135deg,#7C3AED 0%,#A855F7 40%,#F59E0B 100%)',
-  'linear-gradient(135deg,#0F172A 0%,#1E3A5F 50%,#7C3AED 100%)',
-  'linear-gradient(135deg,#10B981 0%,#3B82F6 50%,#7C3AED 100%)',
+  'linear-gradient(135deg,#8B5CF6 0%,#A78BFA 40%,#F59E0B 100%)',
+  'linear-gradient(135deg,#27272A 0%,#3F3F46 50%,#8B5CF6 100%)',
+  'linear-gradient(135deg,#10B981 0%,#3B82F6 50%,#8B5CF6 100%)',
 ];
 
 function Avatar({ name, size = 'md' }) {
@@ -17,12 +18,12 @@ function Avatar({ name, size = 'md' }) {
 
 function RoleBadge({ role, status }) {
   if (status === 'admin' || status === 'superadmin') {
-    return <span className="profile-badge badge-admin">⚙️ Administrateur</span>;
+    return <span className="profile-badge badge-admin"><ShieldCheck size={14} style={{ marginRight: 4 }} /> Administrateur</span>;
   }
   if (role === 'moderator') {
-    return <span className="profile-badge badge-verified">✅ Modérateur</span>;
+    return <span className="profile-badge badge-verified"><Shield size={14} style={{ marginRight: 4 }} /> Modérateur</span>;
   }
-  return <span className="profile-badge badge-user">✦ Membre</span>;
+  return <span className="profile-badge badge-user">Membre</span>;
 }
 
 export default function Profile() {
@@ -60,7 +61,7 @@ export default function Profile() {
 
   return (
     <AppLayout>
-      {error && <div className="error-box"><span>⚠️</span> {error}</div>}
+      {error && <div className="error-box"><AlertCircle size={18} /> {error}</div>}
 
       {/* Banner */}
       <div className="profile-banner">
@@ -68,7 +69,6 @@ export default function Profile() {
           className="profile-banner-gradient"
           style={{ background: BANNER_GRADIENTS[bannerIdx] }}
         />
-        {/* Decorative pattern */}
         <div style={{
           position: 'absolute',
           inset: 0,
@@ -88,7 +88,7 @@ export default function Profile() {
             className="btn btn-ghost"
             style={{ marginBottom: 8 }}
           >
-            ✏️ Modifier le profil
+            <Edit3 size={16} /> Modifier le profil
           </button>
         </div>
 
@@ -97,20 +97,14 @@ export default function Profile() {
           <div className="profile-handle">@{profile?.email?.split('@')[0] || 'profil'}</div>
           {profile && <RoleBadge role={profile.role} status={profile.status} />}
           <p className="profile-bio">
-            {profile?.bio || 'Membre de la communauté Epika Social. 🙏 Foi, amour et partage.'}
+            {profile?.bio || 'Membre de la communauté Epika Social. Foi, amour et partage.'}
           </p>
 
           <div className="profile-stats">
-            {[
-              { value: posts.length, label: 'Publications' },
-              { value: Math.floor(Math.random() * 200 + 50), label: 'Abonnés' },
-              { value: Math.floor(Math.random() * 100 + 20), label: 'Abonnements' },
-            ].map((s) => (
-              <div key={s.label} className="profile-stat">
-                <div className="profile-stat-value">{s.value}</div>
-                <div className="profile-stat-label">{s.label}</div>
-              </div>
-            ))}
+            <div className="profile-stat">
+              <div className="profile-stat-value">{posts.length}</div>
+              <div className="profile-stat-label">Publications</div>
+            </div>
           </div>
         </div>
       </div>
@@ -122,10 +116,9 @@ export default function Profile() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {[
-            { label: 'Email', value: profile?.email, icon: '📧' },
-            { label: 'Statut', value: profile?.status, icon: '⚙️' },
-            { label: 'Rôle', value: profile?.role, icon: '🎭' },
-            { label: 'Membre depuis', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR') : 'N/A', icon: '📅' },
+            { label: 'Email', value: profile?.email, icon: <Mail size={16} /> },
+            { label: 'Statut', value: profile?.status, icon: <ShieldCheck size={16} /> },
+            { label: 'Membre depuis', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR') : 'N/A', icon: <Calendar size={16} /> },
           ].map((item) => (
             <div key={item.label} style={{
               padding: '12px 14px',
@@ -133,7 +126,7 @@ export default function Profile() {
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border)',
             }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                 {item.icon} {item.label}
               </div>
               <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
@@ -151,7 +144,7 @@ export default function Profile() {
 
       {posts.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📝</div>
+          <div className="empty-state-icon"><FileText size={40} strokeWidth={1.5} /></div>
           <div className="empty-state-title">Aucune publication</div>
           <p className="empty-state-text">Partagez quelque chose avec la communauté.</p>
         </div>

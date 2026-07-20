@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import api from '../api';
+import { X, AlertCircle, Sparkles } from 'lucide-react';
 
 const POST_TYPES = [
-  { value: 'text', label: '✍️ Texte' },
-  { value: 'témoignage', label: '🙏 Témoignage' },
-  { value: 'prière', label: '✨ Prière' },
-  { value: 'louange', label: '🎵 Louange' },
-  { value: 'annonce', label: '📣 Annonce' },
+  { value: 'text', label: 'Texte' },
+  { value: 'témoignage', label: 'Témoignage' },
+  { value: 'prière', label: 'Prière' },
+  { value: 'louange', label: 'Louange' },
+  { value: 'annonce', label: 'Annonce' },
 ];
 
 export default function CreatePostModal({ user, onClose, onCreated }) {
@@ -49,7 +50,7 @@ export default function CreatePostModal({ user, onClose, onCreated }) {
         {/* Header */}
         <div className="modal-header">
           <h2 className="modal-title">Nouvelle publication</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Fermer"><X size={20} /></button>
         </div>
 
         {/* Author */}
@@ -76,7 +77,7 @@ export default function CreatePostModal({ user, onClose, onCreated }) {
                   borderRadius: 'var(--radius-full)',
                   border: '1px solid',
                   borderColor: type === t.value ? 'var(--primary)' : 'var(--border)',
-                  background: type === t.value ? 'rgba(124,58,237,0.15)' : 'transparent',
+                  background: type === t.value ? 'rgba(139,92,246,0.15)' : 'transparent',
                   color: type === t.value ? 'var(--primary-light)' : 'var(--text-muted)',
                   fontSize: '0.78rem',
                   fontWeight: 600,
@@ -115,7 +116,7 @@ export default function CreatePostModal({ user, onClose, onCreated }) {
           {/* Error */}
           {error && (
             <div className="error-box" style={{ marginBottom: 14 }}>
-              <span>⚠️</span> {error}
+              <AlertCircle size={18} /> {error}
             </div>
           )}
 
@@ -128,8 +129,9 @@ export default function CreatePostModal({ user, onClose, onCreated }) {
               type="submit"
               className={`btn btn-primary${loading ? ' btn-loading' : ''}`}
               disabled={loading || !content.trim()}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              {loading ? '' : '✦ Publier'}
+              {loading ? '' : <><Sparkles size={16} /> Publier</>}
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Home, Compass, Sparkles } from 'lucide-react';
 
 export default function NotFound() {
   return (
@@ -13,12 +14,12 @@ export default function NotFound() {
       background: 'var(--bg-deep)',
     }}>
       <div style={{
-        fontSize: '6rem',
         marginBottom: 24,
         animation: 'float 4s ease-in-out infinite',
-        filter: 'drop-shadow(0 8px 24px rgba(124,58,237,0.3))',
+        filter: 'drop-shadow(0 8px 24px rgba(139,92,246,0.3))',
+        color: 'var(--primary)',
       }}>
-        ✦
+        <Sparkles size={64} strokeWidth={1} />
       </div>
 
       <div style={{
@@ -58,10 +59,10 @@ export default function NotFound() {
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link to="/" className="btn btn-primary btn-lg">
-          🏠 Accueil
+          <Home size={18} /> Accueil
         </Link>
         <Link to="/app" className="btn btn-ghost btn-lg">
-          📰 Voir le feed
+          <Compass size={18} /> Voir le feed
         </Link>
       </div>
 
@@ -69,7 +70,7 @@ export default function NotFound() {
       <div style={{
         position: 'fixed',
         inset: 0,
-        background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.08) 0%, transparent 60%)',
+        background: 'radial-gradient(ellipse at center, rgba(139,92,246,0.08) 0%, transparent 60%)',
         pointerEvents: 'none',
         zIndex: -1,
       }} />

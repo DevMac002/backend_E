@@ -5,14 +5,7 @@ import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { PostSkeleton } from '../components/LoadingSkeleton';
 import { useAuth } from '../hooks/useAuth';
-
-const STORIES = [
-  { id: 1, name: 'Marie', emoji: '🙏', color: 'linear-gradient(135deg,#7C3AED,#A855F7)' },
-  { id: 2, name: 'Jean-Paul', emoji: '✨', color: 'linear-gradient(135deg,#F59E0B,#F97316)' },
-  { id: 3, name: 'Sarah', emoji: '🎵', color: 'linear-gradient(135deg,#10B981,#34D399)' },
-  { id: 4, name: 'David', emoji: '📖', color: 'linear-gradient(135deg,#3B82F6,#60A5FA)' },
-  { id: 5, name: 'Esther', emoji: '❤️', color: 'linear-gradient(135deg,#EC4899,#F472B6)' },
-];
+import { AlertCircle, PenLine, Inbox } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -56,40 +49,8 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      {/* Stories / Highlights */}
-      <div style={{
-        display: 'flex',
-        gap: 12,
-        overflowX: 'auto',
-        paddingBottom: 16,
-        marginBottom: 20,
-        scrollbarWidth: 'none',
-      }}>
-        {STORIES.map((s) => (
-          <div key={s.id} style={{ textAlign: 'center', flexShrink: 0, cursor: 'pointer' }}>
-            <div style={{
-              width: 60,
-              height: 60,
-              borderRadius: '50%',
-              background: s.color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.5rem',
-              margin: '0 auto 6px',
-              border: '2px solid rgba(124,58,237,0.4)',
-              transition: 'transform 0.2s ease',
-            }}
-              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
-              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              {s.emoji}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {s.name}
-            </div>
-          </div>
-        ))}
+      <div className="page-header" style={{ marginBottom: 24 }}>
+        <h1 className="page-title">Fil d'actualité</h1>
       </div>
 
       {/* Create Post Trigger */}
@@ -100,11 +61,12 @@ export default function Dashboard() {
         aria-label="Créer une publication"
         onClick={() => setShowModal(true)}
         onKeyDown={(e) => e.key === 'Enter' && setShowModal(true)}
+        style={{ marginBottom: 24 }}
       >
         <div className="avatar avatar-md">
           {user?.username?.slice(0, 2).toUpperCase() || '?'}
         </div>
-        <div className="create-post-trigger-input">
+        <div className="create-post-trigger-input" style={{ opacity: 0.7 }}>
           Quoi de neuf, {user?.username?.split(' ')[0] || 'ami'} ?
         </div>
         <button
@@ -112,14 +74,14 @@ export default function Dashboard() {
           className="btn btn-primary btn-sm"
           onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
         >
-          ✦ Publier
+          <PenLine size={16} /> Publier
         </button>
       </div>
 
       {/* Error */}
       {error && (
         <div className="error-box">
-          <span>⚠️</span> {error}
+          <AlertCircle size={18} /> {error}
         </div>
       )}
 
@@ -130,11 +92,13 @@ export default function Dashboard() {
         </div>
       ) : posts.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📭</div>
+          <div className="empty-state-icon">
+            <Inbox size={48} strokeWidth={1.5} color="var(--primary)" />
+          </div>
           <div className="empty-state-title">Aucune publication pour le moment</div>
           <p className="empty-state-text">Soyez le premier à partager quelque chose avec la communauté !</p>
           <button type="button" className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => setShowModal(true)}>
-            ✦ Créer une publication
+            <PenLine size={18} /> Créer une publication
           </button>
         </div>
       ) : (

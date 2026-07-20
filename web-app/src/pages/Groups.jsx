@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../hooks/useAuth';
+import { BookOpen, HeartHandshake, Music, Users, Heart, Sparkles, Search, AlertCircle, UsersRound } from 'lucide-react';
 
 const GROUP_COLORS = [
-  { bg: 'linear-gradient(135deg,#7C3AED,#A855F7)', emoji: '📖' },
-  { bg: 'linear-gradient(135deg,#F59E0B,#F97316)', emoji: '🙏' },
-  { bg: 'linear-gradient(135deg,#10B981,#34D399)', emoji: '🎵' },
-  { bg: 'linear-gradient(135deg,#3B82F6,#60A5FA)', emoji: '⛪' },
-  { bg: 'linear-gradient(135deg,#EC4899,#F472B6)', emoji: '✝️' },
-  { bg: 'linear-gradient(135deg,#6366F1,#A78BFA)', emoji: '✨' },
+  { bg: 'linear-gradient(135deg,#7C3AED,#A855F7)', icon: <BookOpen size={36} color="white" /> },
+  { bg: 'linear-gradient(135deg,#F59E0B,#F97316)', icon: <HeartHandshake size={36} color="white" /> },
+  { bg: 'linear-gradient(135deg,#10B981,#34D399)', icon: <Music size={36} color="white" /> },
+  { bg: 'linear-gradient(135deg,#3B82F6,#60A5FA)', icon: <Users size={36} color="white" /> },
+  { bg: 'linear-gradient(135deg,#EC4899,#F472B6)', icon: <Heart size={36} color="white" /> },
+  { bg: 'linear-gradient(135deg,#6366F1,#A78BFA)', icon: <Sparkles size={36} color="white" /> },
 ];
 
 function GroupCardSkeleton() {
@@ -65,7 +66,6 @@ export default function Groups() {
         await api.post(`/groups/${groupId}/join`);
       }
     } catch {
-      // Revert on error
       setJoined((prev) => {
         const next = new Set(prev);
         if (isJoined) next.add(groupId);
@@ -86,10 +86,7 @@ export default function Groups() {
 
       {/* Search */}
       <div className="search-bar" style={{ marginBottom: 24 }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
+        <Search size={18} />
         <input
           type="search"
           placeholder="Rechercher un groupe..."
@@ -102,7 +99,7 @@ export default function Groups() {
         )}
       </div>
 
-      {error && <div className="error-box"><span>⚠️</span> {error}</div>}
+      {error && <div className="error-box"><AlertCircle size={18} /> {error}</div>}
 
       {loading ? (
         <div className="groups-grid">
@@ -110,7 +107,7 @@ export default function Groups() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">{search ? '🔍' : '👥'}</div>
+          <div className="empty-state-icon">{search ? <Search size={40} strokeWidth={1.5} /> : <UsersRound size={40} strokeWidth={1.5} />}</div>
           <div className="empty-state-title">
             {search ? 'Aucun groupe trouvé' : 'Aucun groupe disponible'}
           </div>
@@ -128,21 +125,16 @@ export default function Groups() {
             return (
               <article key={group.id} className="group-card" aria-label={name}>
                 <div className="group-cover" style={{ background: colorScheme.bg }}>
-                  <span style={{ fontSize: '2.2rem', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}>
-                    {colorScheme.emoji}
-                  </span>
+                  <div style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}>
+                    {colorScheme.icon}
+                  </div>
                 </div>
                 <div className="group-body">
                   <div className="group-name">{name}</div>
                   <p className="group-desc">{group.description || 'Rejoignez ce groupe pour en savoir plus.'}</p>
                   <div className="group-footer">
                     <span className="group-members">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                        <path d="M16 3.13a4 4 0 010 7.75" />
-                      </svg>
+                      <Users size={12} style={{ marginRight: 4 }} />
                       {group.member_count || Math.floor(Math.random() * 200 + 5)} membres
                     </span>
                     <button

@@ -1,51 +1,45 @@
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import ToastContainer from '../components/Toast';
+import { HeartHandshake, MessageCircle, Users, Bell, ShieldCheck, Smartphone, HandHeart } from 'lucide-react';
 
 const FEATURES = [
   {
-    icon: '🙏',
-    bg: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(168,85,247,0.15))',
+    icon: <HeartHandshake size={24} color="var(--primary-light)" />,
+    bg: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(167,139,250,0.1))',
     title: 'Communauté Chrétienne',
     desc: 'Partagez témoignages, prières et louanges dans un espace bienveillant et sécurisé.',
   },
   {
-    icon: '💬',
-    bg: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(251,191,36,0.1))',
+    icon: <MessageCircle size={24} color="var(--gold-light)" />,
+    bg: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(252,211,77,0.1))',
     title: 'Messagerie Instantanée',
     desc: 'Discutez en privé ou en groupe avec les membres de votre communauté.',
   },
   {
-    icon: '👥',
+    icon: <Users size={24} color="var(--green)" />,
     bg: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(52,211,153,0.1))',
     title: 'Groupes & Cercles',
     desc: 'Rejoignez des groupes thématiques — Bible, Prière, Louange, Jeunes, Famille.',
   },
   {
-    icon: '🔔',
+    icon: <Bell size={24} color="var(--red)" />,
     bg: 'linear-gradient(135deg, rgba(239,68,68,0.2), rgba(248,113,113,0.1))',
     title: 'Notifications Temps Réel',
     desc: 'Ne manquez jamais une mention, un commentaire ou un événement communautaire.',
   },
   {
-    icon: '🛡️',
+    icon: <ShieldCheck size={24} color="#60A5FA" />,
     bg: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(96,165,250,0.1))',
     title: 'Modération Avancée',
     desc: 'Tableau d\'administration complet pour maintenir un environnement sain.',
   },
   {
-    icon: '📱',
-    bg: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(245,158,11,0.1))',
+    icon: <Smartphone size={24} color="var(--text-secondary)" />,
+    bg: 'var(--glass)',
     title: 'Multiplateforme',
     desc: 'Disponible sur Web, iOS et Android — votre communauté partout avec vous.',
   },
-];
-
-const STATS = [
-  { value: '10k+', label: 'Membres actifs' },
-  { value: '50k+', label: 'Publications' },
-  { value: '200+', label: 'Groupes' },
-  { value: '99%', label: 'Satisfaction' },
 ];
 
 export default function Home() {
@@ -79,9 +73,7 @@ export default function Home() {
       <section className="landing-hero" aria-labelledby="hero-title">
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 800, margin: '0 auto' }}>
           <div className="hero-eyebrow">
-            <span>✦</span>
             <span>Réseau Social Chrétien</span>
-            <span>✦</span>
           </div>
 
           <h1 id="hero-title" className="hero-title">
@@ -100,7 +92,7 @@ export default function Home() {
             ) : user ? (
               <>
                 <Link to="/app" className="btn btn-primary btn-xl">
-                  ✦ Accéder au feed
+                  Accéder au feed
                 </Link>
                 <Link to="/groups" className="btn btn-ghost btn-xl">
                   Voir les groupes
@@ -109,23 +101,13 @@ export default function Home() {
             ) : (
               <>
                 <Link to="/login" className="btn btn-primary btn-xl" id="cta-login">
-                  ✦ Rejoindre la communauté
+                  Rejoindre la communauté
                 </Link>
                 <a href="/docs" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xl">
                   Documentation API
                 </a>
               </>
             )}
-          </div>
-
-          {/* Stats */}
-          <div className="hero-stats" role="list">
-            {STATS.map((s) => (
-              <div key={s.label} role="listitem" style={{ textAlign: 'center' }}>
-                <div className="hero-stat-value">{s.value}</div>
-                <div className="hero-stat-label">{s.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -152,12 +134,14 @@ export default function Home() {
       <section style={{
         padding: '60px 40px',
         textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(245,158,11,0.06) 100%)',
+        background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(245,158,11,0.06) 100%)',
         borderTop: '1px solid var(--border)',
         borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 20 }}>✝️</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <HandHeart size={48} color="var(--primary-light)" />
+          </div>
           <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 16 }}>
             Prêt à rejoindre la famille ?
           </h2>
@@ -165,8 +149,8 @@ export default function Home() {
             Des milliers de chrétiens partagent déjà leur foi sur Epika Social. Rejoignez-les aujourd'hui.
           </p>
           {!user && (
-            <Link to="/login" className="btn btn-gold btn-xl">
-              🙏 Commencer gratuitement
+            <Link to="/login" className="btn btn-primary btn-xl">
+              Commencer gratuitement
             </Link>
           )}
         </div>
