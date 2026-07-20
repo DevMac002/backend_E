@@ -36,7 +36,7 @@ export default function Login() {
           Appareil
           <input value={device} onChange={(e) => setDevice(e.target.value)} type="text" />
         </label>
-        <button type="submit">Se connecter</button>
+        <button type="submit" className="button button-primary">Se connecter</button>
         {error && <div className="error">{error}</div>}
       </form>
     </div>
