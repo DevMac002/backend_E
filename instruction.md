@@ -93,7 +93,7 @@ services:
 
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL`
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`
-- `CORS_ORIGINS` : liste des origines autorisées pour les appels API/quadruples, ou vide pour accepter uniquement les requêtes sans origin (même origine)
+- `CORS_ORIGINS` : liste des origines autorisées pour les appels API et les connexions Socket.IO. Laisser vide pour autoriser uniquement les requêtes même origine et le chargement des assets depuis le même domaine.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 
 ### Points importants

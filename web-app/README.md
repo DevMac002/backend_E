@@ -25,6 +25,8 @@ Créez un fichier `.env` dans `web-app` si nécessaire :
 VITE_API_URL=http://localhost:3000
 ```
 
+Lorsque l’application est servie par le backend Express en production, le client utilise `/` par défaut et ne nécessite pas de `VITE_API_URL`.
+
 ## Fonctionnalités
 
 - Authentification via JWT

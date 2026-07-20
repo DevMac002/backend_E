@@ -38,21 +38,26 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const corsOptions = {
-  origin(origin, callback) {
-    // Native apps, curl and same-origin browser calls do not send Origin.
-    if (!origin) return callback(null, true);
+const corsMiddleware = (req, res, next) => {
+  const corsOptions = {
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
 
-    // If no explicit CORS origins configured, allow same-origin and
-    // cross-origin requests for static assets (this avoids 403 JSON
-    // responses for `/assets/*` when the browser sends an Origin header
-    // due to the `crossorigin` attribute on <script> tags).
-    if (allowedOrigins.length === 0) return callback(null, true);
+      if (allowedOrigins.length > 0) {
+        return allowedOrigins.includes(origin)
+          ? callback(null, true)
+          : callback(new Error('Origine non autorisée par CORS'));
+      }
 
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Origine non autorisée par CORS'));
-  },
-  credentials: true,
+      const requestOrigin = `${req.protocol}://${req.get('host')}`;
+      return origin === requestOrigin
+        ? callback(null, true)
+        : callback(new Error('Origine non autorisée par CORS'));
+    },
+    credentials: true,
+  };
+
+  return cors(corsOptions)(req, res, next);
 };
 
 app.use(helmet({
@@ -70,7 +75,7 @@ app.use(helmet({
   },
   crossOriginResourcePolicy: { policy: 'same-origin' },
 }));
-app.use(cors(corsOptions));
+app.use(corsMiddleware);
 app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true }));
 

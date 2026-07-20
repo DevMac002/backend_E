@@ -13,9 +13,15 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
 function isAllowedSocketRequest(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.length) return allowedOrigins.includes(origin);
+
   try {
-    return new URL(origin).host === req.headers.host;
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const protocol = forwardedProto
+      ? String(forwardedProto).split(',')[0].trim()
+      : (req.socket && req.socket.encrypted ? 'https' : 'http');
+    const requestOrigin = `${protocol}://${req.headers.host}`;
+    return origin === requestOrigin;
   } catch (_error) {
     return false;
   }
