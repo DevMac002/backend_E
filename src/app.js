@@ -41,7 +41,15 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
 const corsOptions = {
   origin(origin, callback) {
     // Native apps, curl and same-origin browser calls do not send Origin.
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin) return callback(null, true);
+
+    // If no explicit CORS origins configured, allow same-origin and
+    // cross-origin requests for static assets (this avoids 403 JSON
+    // responses for `/assets/*` when the browser sends an Origin header
+    // due to the `crossorigin` attribute on <script> tags).
+    if (allowedOrigins.length === 0) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Origine non autorisée par CORS'));
   },
   credentials: true,
