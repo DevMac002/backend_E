@@ -17,7 +17,31 @@ function getResource(requestPath) {
 function auditMiddleware(req, res, next) {
   // Avoid recursively recording the audit viewer's polling requests.
   if (req.path.startsWith('/logs')) return next();
+
+  const originalJson = res.json;
+  const originalSend = res.send;
+  let responseOutput = null;
+
+  res.json = function (body) {
+    responseOutput = body;
+    return originalJson.apply(this, arguments);
+  };
+
+  res.send = function (body) {
+    if (!responseOutput) responseOutput = body;
+    return originalSend.apply(this, arguments);
+  };
+
   res.on('finish', () => {
+    let parsedOutput = responseOutput;
+    if (typeof responseOutput === 'string') {
+      try { parsedOutput = JSON.parse(responseOutput); } catch (e) {}
+    }
+    // Limit large outputs
+    if (parsedOutput && JSON.stringify(parsedOutput).length > 5000) {
+      parsedOutput = '[Response too large to log]';
+    }
+
     AuditLog.create({
       user_id: req.user?.id || null,
       method: req.method,
@@ -26,9 +50,12 @@ function auditMiddleware(req, res, next) {
       ip_address: req.ip || req.socket?.remoteAddress || null,
       user_agent: req.get('user-agent') || null,
       metadata: {
-        query: req.query || {},
-        body: req.body || {},
+        inputs: {
+          query: req.query || {},
+          body: req.body || {},
+        },
         headers: req.headers || {},
+        output: parsedOutput || null,
       },
     }).then((entry) => {
       emitAuditLog({
