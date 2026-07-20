@@ -6,6 +6,15 @@ const { initSocket } = require('./src/config/socket');
 
 const server = http.createServer(app);
 
+// Prevent server crashes from unhandled promise rejections and uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 function startServer() {
   return connectDB().then(() => {
     const port = process.env.PORT || 3000;

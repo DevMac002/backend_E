@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+require('express-async-errors');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
