@@ -107,6 +107,8 @@ app.use('/media', mediaRoutes);
 app.use('/docs', swaggerRoutes);
 app.use('/logs', logsRoutes);
 
+app.use('/site-web', express.static(path.join(__dirname, '..', 'site-web')));
+
 const webAppDist = path.join(__dirname, '..', 'web-app', 'dist');
 const webAppIndex = path.join(webAppDist, 'index.html');
 
@@ -127,6 +129,7 @@ if (fs.existsSync(webAppDist) && fs.existsSync(webAppIndex)) {
       '/docs',
       '/logs',
       '/health',
+      '/site-web',
     ];
 
     if (apiPrefixes.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {
