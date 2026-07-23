@@ -25,6 +25,20 @@ const messageResponse = {
   },
 };
 
+function errorResponse(description, example) {
+  return {
+    description,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ErrorResponse' },
+        ...(example ? { example: { message: example } } : {}),
+      },
+    },
+  };
+}
+
+const rateLimitResponse = errorResponse('Trop de requêtes, réessayez plus tard', 'Too Many Requests');
+
 function authOperation(tag, summary, options = {}) {
   return {
     tags: [tag],
@@ -132,6 +146,36 @@ const openApiSpec = {
         type: 'object',
         properties: {
           message: { type: 'string' },
+        },
+      },
+      ErrorResponse: {
+        type: 'object',
+        required: ['message'],
+        properties: {
+          message: { type: 'string', description: 'Description précise de l\'erreur' },
+          error: { type: 'string', description: 'Détail technique (uniquement en développement)' },
+        },
+      },
+      AuthTokens: {
+        type: 'object',
+        properties: {
+          accessToken: { type: 'string' },
+          refreshToken: { type: 'string' },
+          user: { $ref: '#/components/schemas/UserProfile' },
+        },
+      },
+      UserProfile: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          username: { type: 'string' },
+          email: { type: 'string', format: 'email' },
+          role: { type: 'string' },
+          status: { type: 'string' },
+          is_verified: { type: 'boolean' },
+          avatar_path: { type: 'string', nullable: true },
+          bio: { type: 'string', nullable: true },
+          foi_points: { type: 'integer' },
         },
       },
       NotificationItem: {
@@ -244,28 +288,65 @@ const openApiSpec = {
     '/auth/register': {
       post: publicOperation('Auth', 'Créer un compte', {
         requestBody: jsonBody({ $ref: '#/components/schemas/RegisterInput' }),
-        responses: { 201: jsonResponse, 400: messageResponse, 409: messageResponse, 500: messageResponse },
+        responses: {
+          201: { description: 'Compte créé avec succès', content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string' }, user: { $ref: '#/components/schemas/UserProfile' } } } } } },
+          400: errorResponse('Données de validation invalides', 'Le mot de passe doit contenir au moins 8 caractères avec majuscule, minuscule, chiffre et caractère spécial'),
+          409: errorResponse('Conflit — email ou nom d\'utilisateur déjà pris', 'Cet email est déjà utilisé par un autre compte'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de l\'inscription'),
+        },
       }),
     },
     '/auth/login': {
       post: publicOperation('Auth', 'Se connecter', {
         requestBody: jsonBody({ $ref: '#/components/schemas/LoginInput' }),
-        responses: { 200: jsonResponse, 400: messageResponse, 401: messageResponse, 403: messageResponse, 500: messageResponse },
+        responses: {
+          200: { description: 'Connexion réussie', content: { 'application/json': { schema: { $ref: '#/components/schemas/AuthTokens' } } } },
+          400: errorResponse('Champ manquant', 'Le champ device est obligatoire'),
+          401: errorResponse('Authentification échouée', 'Mot de passe incorrect'),
+          403: errorResponse('Compte inaccessible', 'Votre compte a été banni. Contactez le support pour plus d\'informations.'),
+          404: errorResponse('Compte inexistant', 'Aucun compte associé à cet email'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la connexion'),
+        },
       }),
     },
     '/auth/send-verification-code': {
       post: publicOperation('Auth', 'Envoyer un code de vérification email', {
         requestBody: jsonBody({ type: 'object', required: ['email'], properties: { email: { type: 'string', format: 'email' } } }),
+        responses: {
+          200: messageResponse,
+          400: errorResponse('Email manquant ou compte déjà vérifié', 'Compte déjà vérifié'),
+          404: errorResponse('Utilisateur introuvable', 'Utilisateur introuvable'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur d\'envoi', 'Échec de l\'envoi du code de vérification'),
+        },
       }),
     },
     '/auth/verify-email': {
       post: publicOperation('Auth', 'Vérifier un email avec OTP', {
         requestBody: jsonBody({ $ref: '#/components/schemas/OtpInput' }),
+        responses: {
+          200: { description: 'Email vérifié, tokens fournis', content: { 'application/json': { schema: { $ref: '#/components/schemas/AuthTokens' } } } },
+          400: errorResponse('Données manquantes ou compte déjà vérifié', 'Email et code requis'),
+          401: errorResponse('Code invalide', 'Code invalide'),
+          403: errorResponse('Trop de tentatives', 'Trop de tentatives. Demandez un nouveau code.'),
+          404: errorResponse('Utilisateur introuvable', 'Utilisateur introuvable'),
+          410: errorResponse('Code expiré', 'Code expiré. Demandez un nouveau code.'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la vérification de l\'email'),
+        },
       }),
     },
     '/auth/forgot-password': {
       post: publicOperation('Auth', 'Demander un code de réinitialisation', {
         requestBody: jsonBody({ type: 'object', required: ['email'], properties: { email: { type: 'string', format: 'email' } } }),
+        responses: {
+          200: messageResponse,
+          400: errorResponse('Email invalide', 'Email invalide'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la demande de réinitialisation'),
+        },
       }),
     },
     '/auth/reset-password': {
@@ -279,6 +360,16 @@ const openApiSpec = {
             newPassword: { type: 'string', format: 'password' },
           },
         }),
+        responses: {
+          200: messageResponse,
+          400: errorResponse('Données invalides', 'Le mot de passe doit contenir au moins 8 caractères'),
+          401: errorResponse('Code invalide', 'Code invalide'),
+          403: errorResponse('Trop de tentatives', 'Trop de tentatives. Demandez un nouveau code.'),
+          404: errorResponse('Utilisateur introuvable', 'Utilisateur introuvable'),
+          410: errorResponse('Code expiré', 'Code expiré. Demandez un nouveau code.'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la réinitialisation du mot de passe'),
+        },
       }),
     },
     '/auth/change-password': {
@@ -291,32 +382,84 @@ const openApiSpec = {
             newPassword: { type: 'string', format: 'password' },
           },
         }),
+        responses: {
+          200: messageResponse,
+          400: errorResponse('Nouveau mot de passe invalide', 'Le mot de passe doit contenir au moins 8 caractères'),
+          401: errorResponse('Mot de passe actuel incorrect', 'Mot de passe actuel invalide'),
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors du changement de mot de passe'),
+        },
       }),
     },
     '/auth/refresh': {
       post: publicOperation('Auth', 'Rafraîchir un access token', {
         requestBody: jsonBody({ $ref: '#/components/schemas/RefreshInput' }),
+        responses: {
+          200: { description: 'Nouveau token d\'accès', content: { 'application/json': { schema: { type: 'object', properties: { accessToken: { type: 'string' } } } } } },
+          401: errorResponse('Token invalide ou manquant', 'Refresh token manquant'),
+          403: errorResponse('Utilisateur inaccessible', 'Utilisateur inaccessible'),
+        },
       }),
     },
     '/auth/logout': {
       post: publicOperation('Auth', 'Déconnexion côté client'),
     },
     '/users/me': {
-      get: authOperation('Users', 'Récupérer mon profil'),
-      put: authOperation('Users', 'Mettre à jour mon profil', { requestBody: jsonBody({ type: 'object', additionalProperties: true }) }),
-      delete: authOperation('Users', 'Supprimer mon compte'),
+      get: authOperation('Users', 'Récupérer mon profil', {
+        responses: {
+          200: { description: 'Profil utilisateur', content: { 'application/json': { schema: { $ref: '#/components/schemas/UserProfile' } } } },
+          401: errorResponse('Non authentifié', 'Token manquant ou invalide'),
+          403: errorResponse('Compte banni', 'Votre compte est banni'),
+        },
+      }),
+      put: authOperation('Users', 'Mettre à jour mon profil', {
+        requestBody: jsonBody({ type: 'object', properties: { username: { type: 'string', minLength: 3, maxLength: 30 }, bio: { type: 'string', maxLength: 500 } } }),
+        responses: {
+          200: { description: 'Profil mis à jour', content: { 'application/json': { schema: { $ref: '#/components/schemas/UserProfile' } } } },
+          400: errorResponse('Données invalides', 'Le nom d\'utilisateur doit contenir entre 3 et 30 caractères'),
+          409: errorResponse('Nom d\'utilisateur déjà utilisé', 'Ce nom d\'utilisateur est déjà utilisé'),
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la mise à jour du profil'),
+        },
+      }),
+      delete: authOperation('Users', 'Supprimer mon compte', {
+        responses: {
+          200: messageResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la suppression du compte'),
+        },
+      }),
     },
     '/users/me/avatar': {
-      post: authOperation('Users', 'Uploader mon avatar', { requestBody: multipartFileBody() }),
+      post: authOperation('Users', 'Uploader mon avatar', {
+        requestBody: multipartFileBody(),
+        responses: {
+          200: { description: 'Avatar téléversé', content: { 'application/json': { schema: { type: 'object', properties: { avatar_path: { type: 'string' } } } } } },
+          400: errorResponse('Fichier invalide', 'Format de fichier non supporté. Utilisez JPEG, PNG, WEBP, GIF.'),
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors du téléversement de l\'avatar'),
+        },
+      }),
     },
     '/users/me/change-email': {
-      post: authOperation('Users', 'Modifier mon email et lancer sa vérification', { requestBody: jsonBody({ type: 'object', required: ['email', 'currentPassword'], properties: { email: { type: 'string', format: 'email' }, currentPassword: { type: 'string', format: 'password' } } }) }),
+      post: authOperation('Users', 'Modifier mon email et lancer sa vérification', {
+        requestBody: jsonBody({ type: 'object', required: ['email', 'currentPassword'], properties: { email: { type: 'string', format: 'email' }, currentPassword: { type: 'string', format: 'password' } } }),
+        responses: {
+          200: messageResponse,
+          400: errorResponse('Données manquantes', 'Email et mot de passe actuel requis'),
+          401: errorResponse('Mot de passe invalide', 'Mot de passe actuel invalide'),
+          409: errorResponse('Email déjà utilisé', 'Cet email est déjà utilisé'),
+          502: errorResponse('Échec envoi email', 'Email modifié, mais le code de vérification n\'a pas pu être envoyé'),
+        },
+      }),
     },
     '/users/me/devices': {
       get: authOperation('Users', 'Lister mes appareils connectés'),
     },
     '/users/me/devices/{sessionId}': {
-      delete: authOperation('Users', 'Déconnecter un de mes appareils', { parameters: [{ name: 'sessionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }] }),
+      delete: authOperation('Users', 'Déconnecter un de mes appareils', {
+        parameters: [{ name: 'sessionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          200: messageResponse,
+          404: errorResponse('Appareil introuvable', 'Appareil introuvable'),
+        },
+      }),
     },
     '/users/leaderboard/foi': {
       get: authOperation('Users', 'Classement Foi'),
@@ -359,41 +502,125 @@ const openApiSpec = {
     },
     '/posts': {
       get: authOperation('Posts', 'Lister le feed', { parameters: [...paginationParams, qParam] }),
-      post: authOperation('Posts', 'Créer une publication ou un quiz', { requestBody: multipartFileBody({ content: { type: 'string' }, type: { type: 'string' }, quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'] }, choices: { type: 'string', description: 'Tableau JSON de choix pour un envoi multipart' }, correct_answers: { type: 'string', description: 'Tableau JSON des identifiants corrects' }, max_selections: { type: 'integer', minimum: 1 } }) }),
+      post: authOperation('Posts', 'Créer une publication ou un quiz', {
+        requestBody: multipartFileBody({ content: { type: 'string' }, type: { type: 'string' }, quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'] }, choices: { type: 'string', description: 'Tableau JSON de choix pour un envoi multipart' }, correct_answers: { type: 'string', description: 'Tableau JSON des identifiants corrects' }, max_selections: { type: 'integer', minimum: 1 } }),
+        responses: {
+          201: jsonResponse,
+          400: errorResponse('Données invalides', 'Le contenu du post ne peut pas être vide (texte ou média requis)'),
+          403: errorResponse('Accès refusé', 'Seuls les admins peuvent créer ce type de post'),
+          429: rateLimitResponse,
+          500: errorResponse('Erreur serveur', 'Erreur serveur lors de la création du post'),
+        },
+      }),
     },
     '/posts/predications': {
       get: authOperation('Posts', 'Lister prédications, annonces, sondages et quiz', { parameters: [...paginationParams, qParam] }),
     },
     '/posts/{id}': {
-      get: authOperation('Posts', 'Voir une publication', { parameters: [idParam()] }),
-      put: authOperation('Posts', 'Modifier une publication', { parameters: [idParam()], requestBody: jsonBody({ $ref: '#/components/schemas/PostInput' }) }),
-      delete: authOperation('Posts', 'Supprimer une publication', { parameters: [idParam()] }),
+      get: authOperation('Posts', 'Voir une publication', {
+        parameters: [idParam()],
+        responses: {
+          200: jsonResponse,
+          404: errorResponse('Post introuvable', 'Post introuvable'),
+        },
+      }),
+      put: authOperation('Posts', 'Modifier une publication', {
+        parameters: [idParam()],
+        requestBody: jsonBody({ $ref: '#/components/schemas/PostInput' }),
+        responses: {
+          200: jsonResponse,
+          400: errorResponse('Données invalides', 'La question du quiz est obligatoire'),
+          403: errorResponse('Accès refusé', 'Accès refusé'),
+          404: errorResponse('Post introuvable', 'Post introuvable'),
+        },
+      }),
+      delete: authOperation('Posts', 'Supprimer une publication', {
+        parameters: [idParam()],
+        responses: {
+          200: messageResponse,
+          403: errorResponse('Accès refusé', 'Accès refusé'),
+          404: errorResponse('Post introuvable', 'Post introuvable'),
+        },
+      }),
     },
     '/posts/{id}/like': {
-      post: authOperation('Posts', 'Aimer une publication', { parameters: [idParam()] }),
-      delete: authOperation('Posts', 'Retirer un like', { parameters: [idParam()] }),
+      post: authOperation('Posts', 'Aimer une publication', {
+        parameters: [idParam()],
+        responses: {
+          200: messageResponse,
+          404: errorResponse('Post introuvable', 'Post introuvable'),
+          409: errorResponse('Déjà liké', 'Vous avez déjà liké ce post'),
+        },
+      }),
+      delete: authOperation('Posts', 'Retirer un like', {
+        parameters: [idParam()],
+        responses: {
+          200: messageResponse,
+          404: errorResponse('Post introuvable', 'Post introuvable'),
+        },
+      }),
     },
     '/posts/{id}/likes': {
       get: authOperation('Posts', 'Lister les likes', { parameters: [idParam()] }),
     },
     '/posts/{id}/comments': {
       get: authOperation('Posts', 'Lister les commentaires', { parameters: [idParam()] }),
-      post: authOperation('Posts', 'Ajouter un commentaire', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['content'], properties: { content: { type: 'string' } } }) }),
+      post: authOperation('Posts', 'Ajouter un commentaire', {
+        parameters: [idParam()],
+        requestBody: jsonBody({ type: 'object', required: ['content'], properties: { content: { type: 'string', maxLength: 2000 } } }),
+        responses: {
+          201: jsonResponse,
+          400: errorResponse('Contenu invalide', 'Le contenu du commentaire est obligatoire'),
+          404: errorResponse('Post introuvable', 'Post introuvable'),
+        },
+      }),
     },
     '/posts/{id}/comments/{commentId}': {
-      delete: authOperation('Posts', 'Supprimer un commentaire', { parameters: [idParam(), idParam('commentId', 'Identifiant du commentaire')] }),
+      delete: authOperation('Posts', 'Supprimer un commentaire', {
+        parameters: [idParam(), idParam('commentId', 'Identifiant du commentaire')],
+        responses: {
+          200: messageResponse,
+          403: errorResponse('Accès refusé', 'Accès refusé'),
+          404: errorResponse('Commentaire introuvable', 'Commentaire introuvable'),
+        },
+      }),
     },
     '/posts/{id}/vote': {
-      post: authOperation('Posts', 'Voter à un sondage', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['option_index'], properties: { option_index: { type: 'integer' } } }) }),
+      post: authOperation('Posts', 'Voter à un sondage', {
+        parameters: [idParam()],
+        requestBody: jsonBody({ type: 'object', required: ['option_index'], properties: { option_index: { type: 'integer', minimum: 0 } } }),
+        responses: {
+          200: jsonResponse,
+          400: errorResponse('Index invalide', 'L\'index de l\'option de vote est requis et doit être un entier positif'),
+          404: errorResponse('Sondage introuvable', 'Sondage introuvable'),
+          409: errorResponse('Déjà voté', 'Vous avez déjà voté à ce sondage'),
+        },
+      }),
     },
     '/posts/{id}/results': {
       get: authOperation('Posts', 'Résultats de sondage', { parameters: [idParam()] }),
     },
     '/posts/{id}/answer': {
-      post: authOperation('Posts', 'Répondre à un quiz', { parameters: [idParam()], requestBody: jsonBody({ type: 'object', required: ['answers'], properties: { answers: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'Un identifiant pour un choix unique/vrai-faux, plusieurs pour un choix multiple' } } }) }),
+      post: authOperation('Posts', 'Répondre à un quiz', {
+        parameters: [idParam()],
+        requestBody: jsonBody({ type: 'object', required: ['answers'], properties: { answers: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'Un identifiant pour un choix unique/vrai-faux, plusieurs pour un choix multiple' } } }),
+        responses: {
+          200: { description: 'Résultat de la réponse', content: { 'application/json': { schema: { type: 'object', properties: { correct: { type: 'boolean' }, answers: { type: 'array', items: { type: 'string' } }, answer: { type: 'string' } } } } } },
+          400: errorResponse('Réponse invalide', 'Sélectionnez au moins une réponse'),
+          404: errorResponse('Quiz introuvable', 'Quiz introuvable'),
+          409: errorResponse('Déjà répondu', 'Vous avez déjà répondu à ce quiz'),
+        },
+      }),
     },
     '/posts/{id}/quiz-results': {
-      get: authOperation('Posts', 'Résultats de quiz', { parameters: [idParam()] }),
+      get: authOperation('Posts', 'Résultats de quiz', {
+        parameters: [idParam()],
+        responses: {
+          200: jsonResponse,
+          403: errorResponse('Accès refusé', 'Seul l\'auteur ou un admin peut voir les résultats détaillés'),
+          404: errorResponse('Quiz introuvable', 'Quiz introuvable'),
+        },
+      }),
     },
     '/groups': {
       get: authOperation('Groups', 'Lister mes groupes'),

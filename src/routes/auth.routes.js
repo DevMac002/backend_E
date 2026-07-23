@@ -48,9 +48,12 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (error) return res.status(400).json({ message: error.message });
 
     const existingByEmail = await User.findOne({ where: { email: value.email } });
+    if (existingByEmail) {
+      return res.status(409).json({ message: 'Cet email est déjà utilisé par un autre compte' });
+    }
     const existingByUsername = await User.findOne({ where: { username: value.username } });
-    if (existingByEmail || existingByUsername) {
-      return res.status(409).json({ message: 'Un compte avec cet email ou ce nom d’utilisateur existe déjà' });
+    if (existingByUsername) {
+      return res.status(409).json({ message: 'Ce nom d’utilisateur est déjà pris' });
     }
 
     const password_hash = await bcrypt.hash(value.password, 10);
@@ -77,7 +80,8 @@ router.post('/register', registerLimiter, async (req, res) => {
       user: { id: user.id, username: user.username, email: user.email, is_verified: user.is_verified },
     });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[auth:register]', e.message);
+    res.status(500).json({ message: 'Erreur serveur lors de l’inscription', error: e.message });
   }
 });
 
@@ -88,18 +92,20 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ message: 'Le champ device est obligatoire' });
     }
     const user = await User.findOne({ where: { email } });
-    if (!user || user.is_banned) return res.status(401).json({ message: 'Identifiants invalides' });
-    if (isTemporaryBlockActive(user)) return res.status(403).json({ message: 'Compte temporairement bloqué', blocked_until: user.blocked_until, reason: user.block_reason });
-    if (!user.is_verified) return res.status(403).json({ message: 'Compte non vérifié. Vérifiez votre email.' });
+    if (!user) return res.status(404).json({ message: 'Aucun compte associé à cet email' });
+    if (user.is_banned) return res.status(403).json({ message: 'Votre compte a été banni. Contactez le support pour plus d’informations.' });
+    if (isTemporaryBlockActive(user)) return res.status(403).json({ message: `Votre compte est temporairement bloqué jusqu’au ${new Date(user.blocked_until).toLocaleDateString('fr-FR')}`, blocked_until: user.blocked_until, reason: user.block_reason });
+    if (!user.is_verified) return res.status(403).json({ message: 'Votre compte n’est pas encore vérifié. Consultez votre boîte mail pour le code de vérification.' });
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ message: 'Identifiants invalides' });
+    if (!valid) return res.status(401).json({ message: 'Mot de passe incorrect' });
     await user.update({ device: String(device).trim() });
     const session = await createSession(user, req, device);
     const accessToken = generateAccessToken(user, session);
     const refreshToken = generateRefreshToken(user, session);
     res.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email, role: user.role, status: user.status, is_verified: user.is_verified, device: user.device } });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[auth:login]', e.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la connexion', error: e.message });
   }
 });
 
@@ -126,7 +132,8 @@ router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
 
     res.json({ message: 'Si un compte correspond à cet e-mail, un code a été envoyé.' });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[auth:forgot-password]', e.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la demande de réinitialisation', error: e.message });
   }
 });
 
@@ -169,7 +176,8 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
 
     res.json({ message: 'Mot de passe réinitialisé avec succès.' });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[auth:reset-password]', e.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la réinitialisation du mot de passe', error: e.message });
   }
 });
 
@@ -192,7 +200,8 @@ router.post('/change-password', authMiddleware, requireNotBanned, async (req, re
 
     res.json({ message: 'Mot de passe modifié avec succès.' });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[auth:change-password]', e.message);
+    res.status(500).json({ message: 'Erreur serveur lors du changement de mot de passe', error: e.message });
   }
 });
 
@@ -214,7 +223,8 @@ router.post('/send-verification-code', otpLimiter, async (req, res) => {
     await sendVerificationCodeEmail(user.email, code);
     res.json({ message: 'Code envoyé' });
   } catch (e) {
-    res.status(500).json({ message: 'Échec de l’envoi du code' });
+    console.error('[auth:send-verification-code]', e.message);
+    res.status(500).json({ message: 'Échec de l’envoi du code de vérification', error: e.message });
   }
 });
 
@@ -265,7 +275,8 @@ router.post('/verify-email', otpLimiter, async (req, res) => {
       user: { id: user.id, username: user.username, email: user.email, role: user.role, status: user.status, is_verified: true },
     });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[auth:verify-email]', e.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la vérification de l’email', error: e.message });
   }
 });
 

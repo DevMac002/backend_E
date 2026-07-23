@@ -135,9 +135,14 @@ async function createPost(req, res) {
     const quiz = type === 'quiz' ? normaliseQuizConfig(req.body) : null;
     if (quiz?.error) return res.status(400).json({ message: quiz.error });
     if (type === 'quiz' && !String(content || '').trim()) return res.status(400).json({ message: 'La question du quiz est obligatoire' });
+    if (type === 'post' && !String(content || '').trim() && !req.file) return res.status(400).json({ message: 'Le contenu du post ne peut pas être vide (texte ou média requis)' });
     let media_path = null;
     if (req.file) {
-      media_path = await saveUploadedFile(req.file, req.user.id, 'post');
+      try {
+        media_path = await saveUploadedFile(req.file, req.user.id, 'post');
+      } catch (uploadError) {
+        return res.status(400).json({ message: 'Erreur lors du téléversement du fichier média', error: uploadError.message });
+      }
     }
     const post = await Post.create({
       author_id: req.user.id,
@@ -154,7 +159,8 @@ async function createPost(req, res) {
     }
     res.status(201).json(post);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[post:create]', error.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la création du post', error: error.message });
   }
 }
 
@@ -247,7 +253,10 @@ async function listComments(req, res) {
 async function addComment(req, res) {
   const post = await Post.findByPk(req.params.id);
   if (!post) return res.status(404).json({ message: 'Post introuvable' });
-  const comment = await Comment.create({ post_id: post.id, author_id: req.user.id, content: req.body.content });
+  const content = req.body.content;
+  if (!content || !String(content).trim()) return res.status(400).json({ message: 'Le contenu du commentaire est obligatoire' });
+  if (String(content).length > 2000) return res.status(400).json({ message: 'Le commentaire ne peut pas dépasser 2000 caractères' });
+  const comment = await Comment.create({ post_id: post.id, author_id: req.user.id, content: String(content).trim() });
   await Notification.create({ user_id: post.author_id, type: 'comment', message: `${req.user.username} a commenté votre publication`, payload: { postId: post.id } });
   if (isRealtimeEnabled) {
     await triggerRealtimeEvent(`private-user-${post.author_id}`, 'notification:new', { type: 'comment', postId: post.id });
@@ -267,6 +276,11 @@ async function voteOnPost(req, res) {
   const post = await Post.findByPk(req.params.id);
   if (!post || post.type !== 'sondage') return res.status(404).json({ message: 'Sondage introuvable' });
   const { option_index } = req.body;
+  if (option_index === undefined || option_index === null || !Number.isInteger(Number(option_index)) || Number(option_index) < 0) {
+    return res.status(400).json({ message: 'L\'index de l\'option de vote est requis et doit être un entier positif' });
+  }
+  const existingVote = await PollVote.findOne({ where: { user_id: req.user.id, post_id: post.id } });
+  if (existingVote) return res.status(409).json({ message: 'Vous avez déjà voté à ce sondage' });
   await PollVote.create({ user_id: req.user.id, post_id: post.id, option_index });
   const votes = await PollVote.findAll({ where: { post_id: post.id } });
   res.json({ message: 'Vote enregistré', votes });

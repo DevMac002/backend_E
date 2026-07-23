@@ -29,8 +29,11 @@ async function updateMe(req, res) {
     const changes = {};
     if (username !== undefined) {
       const normalizedUsername = String(username).trim();
-      if (!/^[a-zA-Z0-9_]{3,30}$/.test(normalizedUsername)) {
-        return res.status(400).json({ message: 'Nom d’utilisateur invalide' });
+      if (normalizedUsername.length < 3 || normalizedUsername.length > 30) {
+        return res.status(400).json({ message: 'Le nom d’utilisateur doit contenir entre 3 et 30 caractères' });
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
+        return res.status(400).json({ message: 'Le nom d’utilisateur ne peut contenir que des lettres, chiffres et underscores' });
       }
       const existingUser = await User.findOne({ where: { username: normalizedUsername } });
       if (existingUser && existingUser.id !== req.user.id) {
@@ -45,7 +48,8 @@ async function updateMe(req, res) {
     await req.user.update(changes);
     res.json(req.user);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[user:updateMe]', error.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la mise à jour du profil', error: error.message });
   }
 }
 
@@ -116,7 +120,8 @@ async function listUsers(req, res) {
     ]);
     res.json(buildPaginatedResponse(users, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[user:listUsers]', error.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la récupération des utilisateurs', error: error.message });
   }
 }
 
@@ -129,11 +134,19 @@ async function getUserById(req, res) {
 async function uploadAvatar(req, res) {
   try {
     if (!req.file) return res.status(400).json({ message: 'Aucun fichier fourni' });
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedMimes.includes(req.file.mimetype)) {
+      return res.status(400).json({ message: `Format de fichier non supporté. Utilisez ${allowedMimes.map(m => m.split('/')[1].toUpperCase()).join(', ')}.` });
+    }
+    if (req.file.size > 5 * 1024 * 1024) {
+      return res.status(400).json({ message: 'Le fichier est trop volumineux. Taille maximale : 5 Mo.' });
+    }
     const avatarPath = await saveUploadedFile(req.file, req.user.id, 'avatar');
     await req.user.update({ avatar_path: avatarPath });
     res.json({ avatar_path: avatarPath });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[user:uploadAvatar]', error.message);
+    res.status(500).json({ message: 'Erreur serveur lors du téléversement de l’avatar', error: error.message });
   }
 }
 
@@ -142,7 +155,8 @@ async function deleteMe(req, res) {
     await req.user.destroy();
     res.json({ message: 'Compte supprimé' });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('[user:deleteMe]', error.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la suppression du compte', error: error.message });
   }
 }
 
