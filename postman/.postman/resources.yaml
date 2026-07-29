@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: fddb0ff1-fd53-4f70-8911-bf4b02893cfa
+
+localResources:
+  collections:
+    - ../epika-social-full-api.postman_collection.json

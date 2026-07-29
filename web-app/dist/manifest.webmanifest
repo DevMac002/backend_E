@@ -1,0 +1,41 @@
+{
+  "name": "Epika Social",
+  "short_name": "Epika",
+  "description": "Réseau social chrétien moderne pour communautés de foi.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0D0D1A",
+  "theme_color": "#8B5CF6",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "community", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Accéder au feed",
+      "short_name": "Feed",
+      "description": "Ouvrir le fil d'actualité Epika Social",
+      "url": "/app",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "description": "Ouvrir votre messagerie privée",
+      "url": "/messages",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}
