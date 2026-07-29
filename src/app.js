@@ -18,6 +18,7 @@ const adminRoutes = require('./routes/admin.routes');
 const mediaRoutes = require('./routes/media.routes');
 const swaggerRoutes = require('./routes/swagger.routes');
 const logsRoutes = require('./routes/logs.routes');
+const siteRoutes = require('./routes/site.routes');
 const dbMiddleware = require('./middlewares/db.middleware');
 const auditMiddleware = require('./middlewares/audit.middleware');
 
@@ -106,8 +107,12 @@ app.use('/admin', adminRoutes);
 app.use('/media', mediaRoutes);
 app.use('/docs', swaggerRoutes);
 app.use('/logs', logsRoutes);
+app.use('/site', siteRoutes);
 
-app.use('/site-web', express.static(path.join(__dirname, '..', 'site-web')));
+// `site-web` was the former standalone landing page. Keep old bookmarks
+// working, but use the React homepage as the single public experience.
+app.get(['/site-web', '/site-web/'], (_req, res) => res.redirect(301, '/'));
+app.get('/site-web/*', (_req, res) => res.redirect(301, '/'));
 
 const webAppDist = path.join(__dirname, '..', 'web-app', 'dist');
 const webAppIndex = path.join(webAppDist, 'index.html');
@@ -130,6 +135,7 @@ if (fs.existsSync(webAppDist) && fs.existsSync(webAppIndex)) {
       '/logs',
       '/health',
       '/site-web',
+      '/site',
     ];
 
     if (apiPrefixes.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {

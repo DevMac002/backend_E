@@ -1,170 +1,115 @@
-import { useAuth } from '../hooks/useAuth';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import ToastContainer from '../components/Toast';
-import { HeartHandshake, MessageCircle, Users, Bell, ShieldCheck, Smartphone, HandHeart } from 'lucide-react';
+import { CalendarDays, ChevronRight, Clock3, Heart, MapPin, PlayCircle, ShieldCheck, UsersRound } from 'lucide-react';
+import api from '../api';
+import { useAuth } from '../hooks/useAuth';
 
-const FEATURES = [
-  {
-    icon: <HeartHandshake size={24} color="var(--primary-light)" />,
-    bg: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(167,139,250,0.1))',
-    title: 'Communauté Chrétienne',
-    desc: 'Partagez témoignages, prières et louanges dans un espace bienveillant et sécurisé.',
-  },
-  {
-    icon: <MessageCircle size={24} color="var(--gold-light)" />,
-    bg: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(252,211,77,0.1))',
-    title: 'Messagerie Instantanée',
-    desc: 'Discutez en privé ou en groupe avec les membres de votre communauté.',
-  },
-  {
-    icon: <Users size={24} color="var(--green)" />,
-    bg: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(52,211,153,0.1))',
-    title: 'Groupes & Cercles',
-    desc: 'Rejoignez des groupes thématiques — Bible, Prière, Louange, Jeunes, Famille.',
-  },
-  {
-    icon: <Bell size={24} color="var(--red)" />,
-    bg: 'linear-gradient(135deg, rgba(239,68,68,0.2), rgba(248,113,113,0.1))',
-    title: 'Notifications Temps Réel',
-    desc: 'Ne manquez jamais une mention, un commentaire ou un événement communautaire.',
-  },
-  {
-    icon: <ShieldCheck size={24} color="#60A5FA" />,
-    bg: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(96,165,250,0.1))',
-    title: 'Modération Avancée',
-    desc: 'Tableau d\'administration complet pour maintenir un environnement sain.',
-  },
-  {
-    icon: <Smartphone size={24} color="var(--text-secondary)" />,
-    bg: 'var(--glass)',
-    title: 'Multiplateforme',
-    desc: 'Disponible sur Web, iOS et Android — votre communauté partout avec vous.',
-  },
-];
+export const DEFAULT_CHURCH_CONTENT = {
+  churchName: 'Église Épika',
+  tagline: 'Une famille pour croire, grandir et servir.',
+  description: 'Nous sommes une église accueillante, enracinée dans la Parole et tournée vers notre ville. Venez comme vous êtes : une place vous attend.',
+  nextService: 'Dimanche · 09:00 & 11:00',
+  address: '125, avenue de la Grâce, Abidjan',
+  mapUrl: 'https://maps.google.com/?q=Abidjan',
+  phone: '+225 00 00 00 00 00',
+  email: 'bonjour@eglise-epika.org',
+  heroImage: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=1800&q=85',
+  gallery: [
+    'https://images.unsplash.com/photo-1466442929976-97f336a657be?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1519491050282-cf00c82424b4?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=900&q=80',
+  ],
+  schedule: [
+    { day: 'Dimanche', time: '09:00', title: 'Célébration familiale' },
+    { day: 'Mercredi', time: '19:00', title: 'Prière & encouragement' },
+    { day: 'Samedi', time: '16:00', title: 'Rencontre des jeunes' },
+  ],
+};
+
+function mergeContent(content) {
+  return {
+    ...DEFAULT_CHURCH_CONTENT,
+    ...(content || {}),
+    gallery: Array.isArray(content?.gallery) && content.gallery.length ? content.gallery : DEFAULT_CHURCH_CONTENT.gallery,
+    schedule: Array.isArray(content?.schedule) && content.schedule.length ? content.schedule : DEFAULT_CHURCH_CONTENT.schedule,
+  };
+}
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const [content, setContent] = useState(DEFAULT_CHURCH_CONTENT);
+
+  useEffect(() => {
+    api.get('/site/content').then(({ data }) => setContent(mergeContent(data.content))).catch(() => {});
+  }, []);
+
+  const isAdmin = ['admin', 'superadmin'].includes(user?.status);
 
   return (
-    <div className="landing-page">
-      {/* Nav */}
-      <nav className="landing-nav" role="navigation" aria-label="Navigation principale">
-        <div className="landing-logo">
-          <div className="landing-logo-icon">✦</div>
-          Epika Social
+    <div className="church-page">
+      <nav className="church-nav" aria-label="Navigation principale">
+        <Link className="church-brand" to="/">
+          <span className="church-brand-mark"><Heart size={18} fill="currentColor" /></span>
+          <span>{content.churchName}</span>
+        </Link>
+        <div className="church-nav-links">
+          <a href="#bienvenue">Bienvenue</a>
+          <a href="#horaires">Horaires</a>
+          <a href="#photos">Photos</a>
+          <a href="#contact">Nous trouver</a>
         </div>
-        <div className="landing-nav-actions">
-          <a href="/docs" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
-            API Docs
-          </a>
-          {loading ? null : user ? (
-            <Link to="/app" className="btn btn-primary btn-sm">
-              Accéder au feed
-            </Link>
-          ) : (
-            <Link to="/login" className="btn btn-primary btn-sm">
-              Se connecter
-            </Link>
-          )}
+        <div className="church-nav-actions">
+          {!loading && isAdmin && <Link to="/admin" className="church-admin-link"><ShieldCheck size={16} /> Administration</Link>}
+          {!loading && <Link to={user ? '/app' : '/login'} className="church-button church-button-small">{user ? 'Mon espace' : 'Se connecter'}</Link>}
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="landing-hero" aria-labelledby="hero-title">
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 800, margin: '0 auto' }}>
-          <div className="hero-eyebrow">
-            <span>Réseau Social Chrétien</span>
-          </div>
-
-          <h1 id="hero-title" className="hero-title">
-            Connectez-vous,<br />
-            <span className="hero-title-gradient">Grandissez ensemble</span>
-          </h1>
-
-          <p className="hero-subtitle">
-            Epika Social est le réseau communautaire chrétien moderne — partagez votre foi,
-            rejoignez des groupes et construisez des liens authentiques dans la bienveillance.
-          </p>
-
-          <div className="hero-actions">
-            {loading ? (
-              <div className="splash-spinner" />
-            ) : user ? (
-              <>
-                <Link to="/app" className="btn btn-primary btn-xl">
-                  Accéder au feed
-                </Link>
-                <Link to="/groups" className="btn btn-ghost btn-xl">
-                  Voir les groupes
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="btn btn-primary btn-xl" id="cta-login">
-                  Rejoindre la communauté
-                </Link>
-                <a href="/docs" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xl">
-                  Documentation API
-                </a>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="landing-features" aria-labelledby="features-title">
-        <h2 id="features-title" className="features-title">
-          Tout ce dont votre communauté a besoin
-        </h2>
-        <div className="features-grid">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="feature-item">
-              <div className="feature-icon" style={{ background: f.bg }}>
-                {f.icon}
-              </div>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
+      <main>
+        <section className="church-hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(9, 18, 31, .92) 4%, rgba(9, 18, 31, .62) 51%, rgba(9, 18, 31, .2)), url(${content.heroImage})` }}>
+          <div className="church-hero-content">
+            <span className="church-kicker"><span /> Bienvenue à la maison</span>
+            <h1>{content.tagline}</h1>
+            <p>{content.description}</p>
+            <div className="church-hero-actions">
+              <a className="church-button" href="#horaires">Planifier ma visite <ChevronRight size={18} /></a>
+              <a className="church-button church-button-outline" href="#contact"><MapPin size={18} /> Nous trouver</a>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA Banner */}
-      <section style={{
-        padding: '60px 40px',
-        textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(245,158,11,0.06) 100%)',
-        borderTop: '1px solid var(--border)',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-            <HandHeart size={48} color="var(--primary-light)" />
           </div>
-          <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 16 }}>
-            Prêt à rejoindre la famille ?
-          </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: '0.95rem' }}>
-            Des milliers de chrétiens partagent déjà leur foi sur Epika Social. Rejoignez-les aujourd'hui.
-          </p>
-          {!user && (
-            <Link to="/login" className="btn btn-primary btn-xl">
-              Commencer gratuitement
-            </Link>
-          )}
-        </div>
-      </section>
+          <div className="church-next-service">
+            <CalendarDays size={21} />
+            <div><span>Prochaine célébration</span><strong>{content.nextService}</strong></div>
+            <a href="#horaires" aria-label="Voir les horaires"><ChevronRight size={20} /></a>
+          </div>
+        </section>
 
-      {/* Footer */}
-      <footer className="landing-footer" role="contentinfo">
-        <p>
-          Epika Social — Réseau Communautaire Chrétien · © {new Date().getFullYear()} ·{' '}
-          <a href="/docs" style={{ color: 'var(--primary-light)' }}>API Documentation</a>
-        </p>
-      </footer>
+        <section id="bienvenue" className="church-section church-intro">
+          <div className="church-section-heading"><span className="church-kicker church-kicker-dark"><span /> Notre communauté</span><h2>Une église vivante, proche de vous.</h2></div>
+          <p>À Épika, chaque génération peut trouver des amis, approfondir sa foi et participer à une communauté qui prend soin des autres.</p>
+          <div className="church-values">
+            <article><UsersRound /><h3>Une vraie famille</h3><p>Des petits groupes et des temps partagés pour ne jamais avancer seul.</p></article>
+            <article><Heart /><h3>Une foi qui agit</h3><p>La compassion et le service sont au cœur de ce que nous vivons au quotidien.</p></article>
+            <article><PlayCircle /><h3>Grandir ensemble</h3><p>Des enseignements accessibles pour tous, à chaque étape de la vie.</p></article>
+          </div>
+        </section>
 
-      <ToastContainer />
+        <section id="horaires" className="church-section church-schedule-section">
+          <div className="church-section-heading"><span className="church-kicker church-kicker-dark"><span /> Cette semaine</span><h2>Nos rendez-vous</h2></div>
+          <div className="church-schedule-grid">
+            {content.schedule.map((event, index) => <article className="church-schedule-card" key={`${event.day}-${event.time}-${index}`}><span>{event.day}</span><strong>{event.time}</strong><p>{event.title}</p><Clock3 size={18} /></article>)}
+          </div>
+        </section>
+
+        <section id="photos" className="church-section church-gallery-section">
+          <div className="church-section-heading"><span className="church-kicker church-kicker-dark"><span /> En images</span><h2>La vie de l'église</h2></div>
+          <div className="church-gallery">{content.gallery.slice(0, 3).map((photo, index) => <img key={`${photo}-${index}`} src={photo} alt={`Moment de vie à l'église ${index + 1}`} loading="lazy" />)}</div>
+        </section>
+
+        <section id="contact" className="church-contact-section">
+          <div><span className="church-kicker"><span /> Venir nous voir</span><h2>Votre première visite commence ici.</h2><p>Nous serons heureux de vous accueillir et de répondre à vos questions.</p><a className="church-button church-button-light" href={content.mapUrl} target="_blank" rel="noreferrer"><MapPin size={18} /> Itinéraire</a></div>
+          <address><MapPin size={21} /><p><strong>Notre adresse</strong>{content.address}</p><p><strong>Contact</strong><a href={`tel:${content.phone.replace(/\s/g, '')}`}>{content.phone}</a><a href={`mailto:${content.email}`}>{content.email}</a></p></address>
+        </section>
+      </main>
+      <footer className="church-footer"><span>© {new Date().getFullYear()} {content.churchName}</span><span>Une communauté de foi ouverte à tous.</span>{isAdmin && <Link to="/admin">Gérer le site</Link>}</footer>
     </div>
   );
 }

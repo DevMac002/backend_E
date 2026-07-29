@@ -15,6 +15,7 @@ const Media = require('./Media');
 const ModerationLog = require('./ModerationLog');
 const UserSession = require('./UserSession');
 const AuditLog = require('./AuditLog');
+const ChurchSiteConfig = require('./ChurchSiteConfig');
 
 User.hasMany(Post, { foreignKey: 'author_id' });
 Post.belongsTo(User, { foreignKey: 'author_id' });
@@ -98,4 +99,5 @@ module.exports = {
   ModerationLog,
   UserSession,
   AuditLog,
+  ChurchSiteConfig,
 };

@@ -6,10 +6,13 @@ const { connectDB, sequelize } = require('../src/config/database');
 
 async function run() {
   await connectDB();
-  const migrationPath = path.join(__dirname, '../database/migrations/20260718_add_moderation_and_media_metadata.sql');
-  const sql = fs.readFileSync(migrationPath, 'utf8');
-  const statements = sql.split(/;\s*(?:\r?\n|$)/).map((statement) => statement.trim()).filter(Boolean);
-  for (const statement of statements) await sequelize.query(statement);
+  const migrationsDir = path.join(__dirname, '../database/migrations');
+  const migrationFiles = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort();
+  for (const file of migrationFiles) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    const statements = sql.split(/;\s*(?:\r?\n|$)/).map((statement) => statement.trim()).filter(Boolean);
+    for (const statement of statements) await sequelize.query(statement);
+  }
   console.log('Migration de sécurité appliquée.');
   await sequelize.close();
 }

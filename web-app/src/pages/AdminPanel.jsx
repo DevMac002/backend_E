@@ -3,7 +3,8 @@ import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { StatsSkeleton } from '../components/LoadingSkeleton';
 import { useAuth } from '../hooks/useAuth';
-import { Users, FileText, UsersRound, MessageSquare, ShieldCheck, LayoutDashboard, ScrollText, AlertCircle } from 'lucide-react';
+import { Users, FileText, UsersRound, MessageSquare, ShieldCheck, LayoutDashboard, ScrollText, AlertCircle, Save, Settings2 } from 'lucide-react';
+import { DEFAULT_CHURCH_CONTENT } from './Home';
 
 const STAT_CONFIGS = [
   { key: 'total_users',    label: 'Utilisateurs', icon: <Users size={24} color="white" />, iconBg: 'linear-gradient(135deg,#7C3AED,#A855F7)' },
@@ -34,6 +35,9 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [siteContent, setSiteContent] = useState(DEFAULT_CHURCH_CONTENT);
+  const [siteSaving, setSiteSaving] = useState(false);
+  const [siteMessage, setSiteMessage] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -48,10 +52,32 @@ export default function AdminPanel() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    api.get('/site/content')
+      .then(({ data }) => data.content && setSiteContent({ ...DEFAULT_CHURCH_CONTENT, ...data.content }))
+      .catch(() => setSiteMessage('Le contenu public est indisponible pour le moment.'));
+  }, []);
+
   const TABS = [
     { id: 'overview', label: <><LayoutDashboard size={16} /> Vue d'ensemble</> },
+    { id: 'site',     label: <><Settings2 size={16} /> Accueil de l'église</> },
     { id: 'logs',     label: <><ScrollText size={16} /> Logs de modération</> },
   ];
+
+  const updateSiteField = (field, value) => setSiteContent((current) => ({ ...current, [field]: value }));
+  const saveSite = async (event) => {
+    event.preventDefault();
+    setSiteSaving(true);
+    setSiteMessage('');
+    try {
+      await api.put('/site/content', { content: siteContent });
+      setSiteMessage('Les informations de l’accueil ont été publiées.');
+    } catch (requestError) {
+      setSiteMessage(requestError.response?.data?.message || 'La publication a échoué.');
+    } finally {
+      setSiteSaving(false);
+    }
+  };
 
   return (
     <AppLayout>
@@ -141,6 +167,30 @@ export default function AdminPanel() {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'site' && (
+        <form className="site-editor" onSubmit={saveSite}>
+          <div className="admin-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Settings2 size={18} /> Gérer l'accueil public
+          </div>
+          <p className="site-editor-intro">Modifiez le texte, les horaires, les photos et les coordonnées affichés sur la page d’accueil de l’église.</p>
+          {siteMessage && <div className="site-editor-message">{siteMessage}</div>}
+          <div className="site-editor-grid">
+            <label className="form-group"><span className="form-label">Nom de l'église</span><input className="form-input" value={siteContent.churchName || ''} onChange={(e) => updateSiteField('churchName', e.target.value)} required /></label>
+            <label className="form-group"><span className="form-label">Prochaine célébration</span><input className="form-input" value={siteContent.nextService || ''} onChange={(e) => updateSiteField('nextService', e.target.value)} required /></label>
+            <label className="form-group site-editor-full"><span className="form-label">Titre de la bannière</span><input className="form-input" value={siteContent.tagline || ''} onChange={(e) => updateSiteField('tagline', e.target.value)} required /></label>
+            <label className="form-group site-editor-full"><span className="form-label">Texte d’accueil</span><textarea className="form-input" rows="3" value={siteContent.description || ''} onChange={(e) => updateSiteField('description', e.target.value)} required /></label>
+            <label className="form-group site-editor-full"><span className="form-label">URL de la photo de bannière</span><input className="form-input" type="url" value={siteContent.heroImage || ''} onChange={(e) => updateSiteField('heroImage', e.target.value)} /></label>
+            <label className="form-group"><span className="form-label">Adresse</span><input className="form-input" value={siteContent.address || ''} onChange={(e) => updateSiteField('address', e.target.value)} required /></label>
+            <label className="form-group"><span className="form-label">Lien Google Maps</span><input className="form-input" type="url" value={siteContent.mapUrl || ''} onChange={(e) => updateSiteField('mapUrl', e.target.value)} /></label>
+            <label className="form-group"><span className="form-label">Téléphone</span><input className="form-input" value={siteContent.phone || ''} onChange={(e) => updateSiteField('phone', e.target.value)} /></label>
+            <label className="form-group"><span className="form-label">Email</span><input className="form-input" type="email" value={siteContent.email || ''} onChange={(e) => updateSiteField('email', e.target.value)} /></label>
+            <label className="form-group site-editor-full"><span className="form-label">Photos de la galerie (une URL par ligne)</span><textarea className="form-input" rows="4" value={(siteContent.gallery || []).join('\n')} onChange={(e) => updateSiteField('gallery', e.target.value.split('\n').map((url) => url.trim()).filter(Boolean))} /></label>
+            <label className="form-group site-editor-full"><span className="form-label">Horaires (un rendez-vous par ligne : Jour | Heure | Intitulé)</span><textarea className="form-input" rows="4" value={(siteContent.schedule || []).map((event) => `${event.day} | ${event.time} | ${event.title}`).join('\n')} onChange={(e) => updateSiteField('schedule', e.target.value.split('\n').map((line) => line.split('|').map((part) => part.trim())).filter((parts) => parts.length === 3 && parts.every(Boolean)).map(([day, time, title]) => ({ day, time, title })))} /></label>
+          </div>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={siteSaving}><Save size={18} />{siteSaving ? 'Publication…' : 'Publier les changements'}</button>
+        </form>
       )}
 
       {activeTab === 'logs' && (
