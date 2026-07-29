@@ -1,115 +1,70 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, ChevronRight, Clock3, Heart, MapPin, PlayCircle, ShieldCheck, UsersRound } from 'lucide-react';
+import { ArrowRight, BookOpen, CalendarDays, ChevronRight, CirclePlay, Heart, HeartHandshake, MapPin, ShieldCheck, UsersRound } from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../hooks/useAuth';
 
 export const DEFAULT_CHURCH_CONTENT = {
-  churchName: 'Église Épika',
-  tagline: 'Une famille pour croire, grandir et servir.',
-  description: 'Nous sommes une église accueillante, enracinée dans la Parole et tournée vers notre ville. Venez comme vous êtes : une place vous attend.',
-  nextService: 'Dimanche · 09:00 & 11:00',
-  address: '125, avenue de la Grâce, Abidjan',
+  churchName: 'Église Nouvelle Alliance',
+  tagline: 'Vivre pour Christ, Impacter le monde.',
+  description: 'Une église accueillante, centrée sur la Parole de Dieu, la prière, la louange et l’amour du prochain.',
+  nextService: 'Dimanche · 09:00',
+  address: '123 Rue de la Grâce, Abidjan, Côte d’Ivoire',
   mapUrl: 'https://maps.google.com/?q=Abidjan',
   phone: '+225 00 00 00 00 00',
-  email: 'bonjour@eglise-epika.org',
-  heroImage: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=1800&q=85',
+  email: 'bonjour@nouvellealliance.ci',
+  heroImage: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=2200&q=90',
   gallery: [
-    'https://images.unsplash.com/photo-1466442929976-97f336a657be?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1519491050282-cf00c82424b4?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=900&q=85',
   ],
   schedule: [
-    { day: 'Dimanche', time: '09:00', title: 'Célébration familiale' },
-    { day: 'Mercredi', time: '19:00', title: 'Prière & encouragement' },
-    { day: 'Samedi', time: '16:00', title: 'Rencontre des jeunes' },
+    { day: '03', time: '09:00 - 11:30', title: 'Culte dominical' },
+    { day: '08', time: '19:00 - 20:30', title: 'Réunion de prière' },
+    { day: '15', time: '18:00 - 21:00', title: 'Soirée des jeunes' },
   ],
 };
 
+const VALUES = [
+  { icon: BookOpen, title: 'La Parole de Dieu', text: 'Nous enseignons la Bible avec clarté pour une vie transformée.' },
+  { icon: UsersRound, title: 'Communauté', text: 'Une famille unie où chacun trouve sa place.' },
+  { icon: HeartHandshake, title: 'Service', text: 'Nous servons Dieu en servant les autres avec amour.' },
+  { icon: Heart, title: 'Mission', text: 'Nous allons plus loin pour impacter notre génération.' },
+];
+
 function mergeContent(content) {
-  return {
-    ...DEFAULT_CHURCH_CONTENT,
-    ...(content || {}),
-    gallery: Array.isArray(content?.gallery) && content.gallery.length ? content.gallery : DEFAULT_CHURCH_CONTENT.gallery,
-    schedule: Array.isArray(content?.schedule) && content.schedule.length ? content.schedule : DEFAULT_CHURCH_CONTENT.schedule,
-  };
+  return { ...DEFAULT_CHURCH_CONTENT, ...(content || {}), gallery: content?.gallery?.length ? content.gallery : DEFAULT_CHURCH_CONTENT.gallery, schedule: content?.schedule?.length ? content.schedule : DEFAULT_CHURCH_CONTENT.schedule };
 }
 
 export default function Home() {
   const { user, loading } = useAuth();
   const [content, setContent] = useState(DEFAULT_CHURCH_CONTENT);
-
-  useEffect(() => {
-    api.get('/site/content').then(({ data }) => setContent(mergeContent(data.content))).catch(() => {});
-  }, []);
-
+  useEffect(() => { api.get('/site/content').then(({ data }) => setContent(mergeContent(data.content))).catch(() => {}); }, []);
   const isAdmin = ['admin', 'superadmin'].includes(user?.status);
+  const [serviceDay, serviceTime = '09:00'] = content.nextService.split('·').map((value) => value.trim());
 
-  return (
-    <div className="church-page">
-      <nav className="church-nav" aria-label="Navigation principale">
-        <Link className="church-brand" to="/">
-          <span className="church-brand-mark"><Heart size={18} fill="currentColor" /></span>
-          <span>{content.churchName}</span>
-        </Link>
-        <div className="church-nav-links">
-          <a href="#bienvenue">Bienvenue</a>
-          <a href="#horaires">Horaires</a>
-          <a href="#photos">Photos</a>
-          <a href="#contact">Nous trouver</a>
-        </div>
-        <div className="church-nav-actions">
-          {!loading && isAdmin && <Link to="/admin" className="church-admin-link"><ShieldCheck size={16} /> Administration</Link>}
-          {!loading && <Link to={user ? '/app' : '/login'} className="church-button church-button-small">{user ? 'Mon espace' : 'Se connecter'}</Link>}
-        </div>
+  return <div className="official-church-page">
+    <section className="official-hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(2, 10, 20, .96) 0%, rgba(2, 10, 20, .66) 42%, rgba(2, 10, 20, .12) 100%), url(${content.heroImage})` }}>
+      <nav className="official-nav" aria-label="Navigation principale">
+        <Link className="official-brand" to="/"><span className="official-cross">✝</span><span><small>Église</small>{content.churchName.replace(/^Église\s*/i, '')}</span></Link>
+        <div className="official-nav-links"><a className="active" href="#accueil">Accueil</a><a href="#apropos">À propos</a><a href="#ministeres">Ministères</a><a href="#evenements">Événements</a><a href="#medias">Médias</a><a href="#ressources">Ressources</a><a href="#contact">Contact</a></div>
+        <div className="official-nav-actions">{isAdmin && <Link className="official-admin" to="/admin"><ShieldCheck size={15} /> Admin</Link>}<a className="official-donate" href="#contact">Faire un don <Heart size={16} /></a></div>
       </nav>
+      <div id="accueil" className="official-hero-inner">
+        <div className="official-hero-copy"><h1>{content.tagline.split(', ').map((line, index) => <span key={line} className={index === 1 ? 'gold' : ''}>{line}{index === 0 && <br />}</span>)}</h1><p>{content.description}</p><div className="official-actions"><a href="#apropos" className="official-primary">Nous rejoindre <ArrowRight size={17} /></a><a href="#apropos" className="official-secondary">En savoir plus</a></div></div>
+        <aside className="official-service-card"><div className="official-card-heading"><CalendarDays size={25} /> <span>Prochain culte</span></div><strong>{serviceDay}</strong><b>{serviceTime}</b><p><MapPin size={18} /> {content.address}</p><a href={content.mapUrl} target="_blank" rel="noreferrer">Ajouter au calendrier <ArrowRight size={16} /></a></aside>
+      </div>
+    </section>
 
-      <main>
-        <section className="church-hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(9, 18, 31, .92) 4%, rgba(9, 18, 31, .62) 51%, rgba(9, 18, 31, .2)), url(${content.heroImage})` }}>
-          <div className="church-hero-content">
-            <span className="church-kicker"><span /> Bienvenue à la maison</span>
-            <h1>{content.tagline}</h1>
-            <p>{content.description}</p>
-            <div className="church-hero-actions">
-              <a className="church-button" href="#horaires">Planifier ma visite <ChevronRight size={18} /></a>
-              <a className="church-button church-button-outline" href="#contact"><MapPin size={18} /> Nous trouver</a>
-            </div>
-          </div>
-          <div className="church-next-service">
-            <CalendarDays size={21} />
-            <div><span>Prochaine célébration</span><strong>{content.nextService}</strong></div>
-            <a href="#horaires" aria-label="Voir les horaires"><ChevronRight size={20} /></a>
-          </div>
-        </section>
-
-        <section id="bienvenue" className="church-section church-intro">
-          <div className="church-section-heading"><span className="church-kicker church-kicker-dark"><span /> Notre communauté</span><h2>Une église vivante, proche de vous.</h2></div>
-          <p>À Épika, chaque génération peut trouver des amis, approfondir sa foi et participer à une communauté qui prend soin des autres.</p>
-          <div className="church-values">
-            <article><UsersRound /><h3>Une vraie famille</h3><p>Des petits groupes et des temps partagés pour ne jamais avancer seul.</p></article>
-            <article><Heart /><h3>Une foi qui agit</h3><p>La compassion et le service sont au cœur de ce que nous vivons au quotidien.</p></article>
-            <article><PlayCircle /><h3>Grandir ensemble</h3><p>Des enseignements accessibles pour tous, à chaque étape de la vie.</p></article>
-          </div>
-        </section>
-
-        <section id="horaires" className="church-section church-schedule-section">
-          <div className="church-section-heading"><span className="church-kicker church-kicker-dark"><span /> Cette semaine</span><h2>Nos rendez-vous</h2></div>
-          <div className="church-schedule-grid">
-            {content.schedule.map((event, index) => <article className="church-schedule-card" key={`${event.day}-${event.time}-${index}`}><span>{event.day}</span><strong>{event.time}</strong><p>{event.title}</p><Clock3 size={18} /></article>)}
-          </div>
-        </section>
-
-        <section id="photos" className="church-section church-gallery-section">
-          <div className="church-section-heading"><span className="church-kicker church-kicker-dark"><span /> En images</span><h2>La vie de l'église</h2></div>
-          <div className="church-gallery">{content.gallery.slice(0, 3).map((photo, index) => <img key={`${photo}-${index}`} src={photo} alt={`Moment de vie à l'église ${index + 1}`} loading="lazy" />)}</div>
-        </section>
-
-        <section id="contact" className="church-contact-section">
-          <div><span className="church-kicker"><span /> Venir nous voir</span><h2>Votre première visite commence ici.</h2><p>Nous serons heureux de vous accueillir et de répondre à vos questions.</p><a className="church-button church-button-light" href={content.mapUrl} target="_blank" rel="noreferrer"><MapPin size={18} /> Itinéraire</a></div>
-          <address><MapPin size={21} /><p><strong>Notre adresse</strong>{content.address}</p><p><strong>Contact</strong><a href={`tel:${content.phone.replace(/\s/g, '')}`}>{content.phone}</a><a href={`mailto:${content.email}`}>{content.email}</a></p></address>
-        </section>
-      </main>
-      <footer className="church-footer"><span>© {new Date().getFullYear()} {content.churchName}</span><span>Une communauté de foi ouverte à tous.</span>{isAdmin && <Link to="/admin">Gérer le site</Link>}</footer>
-    </div>
-  );
+    <main className="official-main">
+      <section id="apropos" className="official-values">{VALUES.map(({ icon: Icon, title, text }) => <article key={title}><Icon /><div><h2>{title}</h2><p>{text}</p></div></article>)}</section>
+      <section className="official-content-grid">
+        <article id="medias" className="official-panel official-message"><img src={content.gallery[0]} alt="Dernier message de l’église" /><div className="official-play"><CirclePlay fill="rgba(0,0,0,.5)" /></div><div className="official-panel-body"><b>Dernier message</b><p>Marcher par la foi et non par la vue</p><a className="official-small-button" href="/app">Regarder maintenant</a></div></article>
+        <article id="ressources" className="official-panel official-verse"><span>Verset du jour</span><blockquote>« Car nous marchons par la foi, et non par la vue. »</blockquote><p>2 Corinthiens 5:7</p><a href="#contact">Lire la Bible <ArrowRight size={16} /></a></article>
+        <article id="evenements" className="official-panel official-events"><h2>Événements à venir</h2>{content.schedule.slice(0, 3).map((event) => <div className="official-event" key={`${event.day}-${event.title}`}><time><b>{event.day}</b><span>AOÛT</span></time><p><strong>{event.title}</strong><span>{event.time}</span><small>Temple principal</small></p></div>)}<a href="#contact">Voir tous les événements <ChevronRight size={16} /></a></article>
+        <article id="ministeres" className="official-panel official-prayer"><img src={content.gallery[1] || content.gallery[0]} alt="Prière et accompagnement" /><div className="official-panel-body"><b>Besoin de prière ?</b><p>Notre équipe est là pour prier avec vous et vous accompagner.</p><a className="official-small-button" href={`mailto:${content.email}?subject=Demande%20de%20prière`}>Faire une demande</a></div></article>
+      </section>
+    </main>
+    <footer id="contact" className="official-footer"><span>{content.churchName} · {content.address}</span><a href={`mailto:${content.email}`}>{content.email}</a>{!loading && <Link to={user ? '/app' : '/login'}>{user ? 'Mon espace' : 'Se connecter'}</Link>}</footer>
+  </div>;
 }
