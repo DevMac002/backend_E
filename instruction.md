@@ -2,8 +2,6 @@
 
 API Node.js/Express pour le réseau social chrétien Epika Social. Elle fournit l’authentification par JWT et OTP email, le feed, les groupes, la messagerie, les notifications, les médias stockés en base de données et des outils d’administration.
 
-La documentation interactive est disponible sur `/docs` et sa spécification OpenAPI sur `/docs/openapi.json`.
-
 Le journal d’audit est disponible publiquement sur `/logs` sur l’environnement local comme hébergé, sans connexion. Les entrées sont également disponibles en JSON sur `/logs/api`.
 
 ## Prérequis et démarrage
@@ -100,7 +98,7 @@ services:
 
 - Le build `npm run build` génère le front-end dans `web-app/dist` via le script racine `build:webapp`.
 - L’application React est servie par Express si `web-app/dist/index.html` existe.
-- Les API restent disponibles sous les chemins `/auth`, `/users`, `/posts`, `/groups`, `/messages`, `/notifications`, `/search`, `/admin`, `/media`, `/docs`, `/logs`.
+- Les API restent disponibles sous les chemins `/auth`, `/users`, `/posts`, `/groups`, `/messages`, `/notifications`, `/search`, `/admin`, `/media`, `/site`, `/logs`.
 - La racine `/` renvoie l’application web publique.
 
 ### Déploiement rapide
@@ -750,4 +748,3 @@ Les événements Pusher (si `PUSHER_ENABLED=true`) incluent aussi les changement
 - Une action protégée est refusée aux comptes bannis.
 - Les changements de rôle et de statut sont journalisés dans l’historique des rôles.
 - Les suppressions utilisent les opérations Sequelize actuelles; ce projet ne déclare pas de mécanisme générique de suppression logique.
-- Les routes effectives, les schémas de requête et les statuts HTTP détaillés sont consultables dans Swagger sur `/docs`.

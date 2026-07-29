@@ -1087,23 +1087,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "Docs",
-      "item": [
-        {
-          "name": "Swagger Docs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/docs",
-              "host": ["{{baseUrl}}"],
-              "path": ["docs"]
-            }
-          }
-        }
-      ]
     }
   ]
 }
