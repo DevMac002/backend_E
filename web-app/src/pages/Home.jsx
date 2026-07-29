@@ -18,6 +18,12 @@ export const DEFAULT_CHURCH_CONTENT = {
     'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=900&q=85',
     'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=900&q=85',
   ],
+  messageTitle: 'Marcher par la foi et non par la vue',
+  verseText: 'Car nous marchons par la foi, et non par la vue.',
+  verseReference: '2 Corinthiens 5:7',
+  prayerTitle: 'Besoin de prière ?',
+  prayerDescription: 'Notre équipe est là pour prier avec vous et vous accompagner.',
+  serviceLocation: 'Temple principal',
   schedule: [
     { day: '03', time: '09:00 - 11:30', title: 'Culte dominical' },
     { day: '08', time: '19:00 - 20:30', title: 'Réunion de prière' },
@@ -59,10 +65,10 @@ export default function Home() {
     <main className="official-main">
       <section id="apropos" className="official-values">{VALUES.map(({ icon: Icon, title, text }) => <article key={title}><Icon /><div><h2>{title}</h2><p>{text}</p></div></article>)}</section>
       <section className="official-content-grid">
-        <article id="medias" className="official-panel official-message"><img src={content.gallery[0]} alt="Dernier message de l’église" /><div className="official-play"><CirclePlay fill="rgba(0,0,0,.5)" /></div><div className="official-panel-body"><b>Dernier message</b><p>Marcher par la foi et non par la vue</p><a className="official-small-button" href="/app">Regarder maintenant</a></div></article>
-        <article id="ressources" className="official-panel official-verse"><span>Verset du jour</span><blockquote>« Car nous marchons par la foi, et non par la vue. »</blockquote><p>2 Corinthiens 5:7</p><a href="#contact">Lire la Bible <ArrowRight size={16} /></a></article>
-        <article id="evenements" className="official-panel official-events"><h2>Événements à venir</h2>{content.schedule.slice(0, 3).map((event) => <div className="official-event" key={`${event.day}-${event.title}`}><time><b>{event.day}</b><span>AOÛT</span></time><p><strong>{event.title}</strong><span>{event.time}</span><small>Temple principal</small></p></div>)}<a href="#contact">Voir tous les événements <ChevronRight size={16} /></a></article>
-        <article id="ministeres" className="official-panel official-prayer"><img src={content.gallery[1] || content.gallery[0]} alt="Prière et accompagnement" /><div className="official-panel-body"><b>Besoin de prière ?</b><p>Notre équipe est là pour prier avec vous et vous accompagner.</p><a className="official-small-button" href={`mailto:${content.email}?subject=Demande%20de%20prière`}>Faire une demande</a></div></article>
+        <article id="medias" className="official-panel official-message"><img src={content.gallery[0]} alt="Dernier message de l’église" /><div className="official-play"><CirclePlay fill="rgba(0,0,0,.5)" /></div><div className="official-panel-body"><b>Dernier message</b><p>{content.messageTitle}</p><a className="official-small-button" href="/app">Regarder maintenant</a></div></article>
+        <article id="ressources" className="official-panel official-verse"><span>Verset du jour</span><blockquote>« {content.verseText} »</blockquote><p>{content.verseReference}</p><a href="#contact">Lire la Bible <ArrowRight size={16} /></a></article>
+        <article id="evenements" className="official-panel official-events"><h2>Événements à venir</h2>{content.schedule.slice(0, 3).map((event) => <div className="official-event" key={`${event.day}-${event.title}`}><time><b>{event.day}</b><span>AOÛT</span></time><p><strong>{event.title}</strong><span>{event.time}</span><small>{content.serviceLocation}</small></p></div>)}<a href="#contact">Voir tous les événements <ChevronRight size={16} /></a></article>
+        <article id="ministeres" className="official-panel official-prayer"><img src={content.gallery[1] || content.gallery[0]} alt="Prière et accompagnement" /><div className="official-panel-body"><b>{content.prayerTitle}</b><p>{content.prayerDescription}</p><a className="official-small-button" href={`mailto:${content.email}?subject=Demande%20de%20prière`}>Faire une demande</a></div></article>
       </section>
     </main>
     <footer id="contact" className="official-footer"><span>{content.churchName} · {content.address}</span><a href={`mailto:${content.email}`}>{content.email}</a>{!loading && <Link to={user ? '/app' : '/login'}>{user ? 'Mon espace' : 'Se connecter'}</Link>}</footer>

@@ -3,6 +3,8 @@ const authMiddleware = require('../middlewares/auth.middleware');
 const { requireNotBanned } = require('../middlewares/status.middleware');
 const { requireRole } = require('../middlewares/role.middleware');
 const { ChurchSiteConfig } = require('../models');
+const upload = require('../middlewares/upload.middleware');
+const { saveUploadedFile } = require('../utils/file');
 
 const router = express.Router();
 const CONFIG_KEY = 'homepage';
@@ -22,6 +24,12 @@ router.put('/content', authMiddleware, requireNotBanned, requireRole('admin', 's
     content: req.body.content,
   });
   return res.json({ message: 'Accueil mis à jour', content: config.content || req.body.content });
+});
+
+router.post('/upload', authMiddleware, requireNotBanned, requireRole('admin', 'superadmin'), upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'Sélectionnez une image à téléverser' });
+  const url = await saveUploadedFile(req.file, req.user.id, 'church-site');
+  return res.status(201).json({ url });
 });
 
 module.exports = router;

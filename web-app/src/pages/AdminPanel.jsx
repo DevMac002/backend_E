@@ -3,7 +3,7 @@ import api from '../api';
 import AppLayout from '../components/AppLayout';
 import { StatsSkeleton } from '../components/LoadingSkeleton';
 import { useAuth } from '../hooks/useAuth';
-import { Users, FileText, UsersRound, MessageSquare, ShieldCheck, LayoutDashboard, ScrollText, AlertCircle, Save, Settings2 } from 'lucide-react';
+import { Users, FileText, UsersRound, MessageSquare, ShieldCheck, LayoutDashboard, ScrollText, AlertCircle, Save, Settings2, Upload, ExternalLink, Image as ImageIcon, RotateCcw } from 'lucide-react';
 import { DEFAULT_CHURCH_CONTENT } from './Home';
 
 const STAT_CONFIGS = [
@@ -37,6 +37,7 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('overview');
   const [siteContent, setSiteContent] = useState(DEFAULT_CHURCH_CONTENT);
   const [siteSaving, setSiteSaving] = useState(false);
+  const [siteUploading, setSiteUploading] = useState(false);
   const [siteMessage, setSiteMessage] = useState('');
 
   useEffect(() => {
@@ -65,6 +66,29 @@ export default function AdminPanel() {
   ];
 
   const updateSiteField = (field, value) => setSiteContent((current) => ({ ...current, [field]: value }));
+  const resetSite = () => {
+    setSiteContent(DEFAULT_CHURCH_CONTENT);
+    setSiteMessage('Les valeurs par défaut ont été restaurées dans le formulaire. Publiez pour les rendre publiques.');
+  };
+  const uploadSiteImage = async (event, target) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSiteUploading(true);
+    setSiteMessage('Téléversement de l’image…');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post('/site/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      if (target === 'hero') updateSiteField('heroImage', data.url);
+      else setSiteContent((current) => ({ ...current, gallery: [...(current.gallery || []), data.url] }));
+      setSiteMessage('Image téléversée. Publiez maintenant les changements.');
+    } catch (requestError) {
+      setSiteMessage(requestError.response?.data?.message || 'Le téléversement a échoué.');
+    } finally {
+      setSiteUploading(false);
+      event.target.value = '';
+    }
+  };
   const saveSite = async (event) => {
     event.preventDefault();
     setSiteSaving(true);
@@ -171,25 +195,34 @@ export default function AdminPanel() {
 
       {activeTab === 'site' && (
         <form className="site-editor" onSubmit={saveSite}>
-          <div className="admin-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Settings2 size={18} /> Gérer l'accueil public
-          </div>
-          <p className="site-editor-intro">Modifiez le texte, les horaires, les photos et les coordonnées affichés sur la page d’accueil de l’église.</p>
+          <div className="site-editor-header"><div><div className="admin-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Settings2 size={18} /> Gestion du site web</div><p className="site-editor-intro">Modifiez puis publiez les informations visibles sur la page officielle de l’église.</p></div><a className="site-preview-link" href="/" target="_blank" rel="noreferrer"><ExternalLink size={16} /> Ouvrir le site</a></div>
           {siteMessage && <div className="site-editor-message">{siteMessage}</div>}
-          <div className="site-editor-grid">
+          <div className="site-editor-layout"><div className="site-editor-grid">
+            <div className="site-editor-section-title">Identité et bannière</div>
             <label className="form-group"><span className="form-label">Nom de l'église</span><input className="form-input" value={siteContent.churchName || ''} onChange={(e) => updateSiteField('churchName', e.target.value)} required /></label>
             <label className="form-group"><span className="form-label">Prochaine célébration</span><input className="form-input" value={siteContent.nextService || ''} onChange={(e) => updateSiteField('nextService', e.target.value)} required /></label>
             <label className="form-group site-editor-full"><span className="form-label">Titre de la bannière</span><input className="form-input" value={siteContent.tagline || ''} onChange={(e) => updateSiteField('tagline', e.target.value)} required /></label>
             <label className="form-group site-editor-full"><span className="form-label">Texte d’accueil</span><textarea className="form-input" rows="3" value={siteContent.description || ''} onChange={(e) => updateSiteField('description', e.target.value)} required /></label>
             <label className="form-group site-editor-full"><span className="form-label">URL de la photo de bannière</span><input className="form-input" type="url" value={siteContent.heroImage || ''} onChange={(e) => updateSiteField('heroImage', e.target.value)} /></label>
+            <label className="site-upload-control site-editor-full"><Upload size={17} />{siteUploading ? 'Téléversement…' : 'Téléverser une nouvelle bannière'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => uploadSiteImage(event, 'hero')} disabled={siteUploading} /></label>
+            <div className="site-editor-section-title">Coordonnées</div>
             <label className="form-group"><span className="form-label">Adresse</span><input className="form-input" value={siteContent.address || ''} onChange={(e) => updateSiteField('address', e.target.value)} required /></label>
             <label className="form-group"><span className="form-label">Lien Google Maps</span><input className="form-input" type="url" value={siteContent.mapUrl || ''} onChange={(e) => updateSiteField('mapUrl', e.target.value)} /></label>
             <label className="form-group"><span className="form-label">Téléphone</span><input className="form-input" value={siteContent.phone || ''} onChange={(e) => updateSiteField('phone', e.target.value)} /></label>
             <label className="form-group"><span className="form-label">Email</span><input className="form-input" type="email" value={siteContent.email || ''} onChange={(e) => updateSiteField('email', e.target.value)} /></label>
+            <div className="site-editor-section-title">Contenus de la page</div>
+            <label className="form-group"><span className="form-label">Titre du dernier message</span><input className="form-input" value={siteContent.messageTitle || ''} onChange={(e) => updateSiteField('messageTitle', e.target.value)} /></label>
+            <label className="form-group"><span className="form-label">Référence du verset</span><input className="form-input" value={siteContent.verseReference || ''} onChange={(e) => updateSiteField('verseReference', e.target.value)} /></label>
+            <label className="form-group site-editor-full"><span className="form-label">Verset du jour</span><textarea className="form-input" rows="2" value={siteContent.verseText || ''} onChange={(e) => updateSiteField('verseText', e.target.value)} /></label>
+            <label className="form-group"><span className="form-label">Titre du bloc de prière</span><input className="form-input" value={siteContent.prayerTitle || ''} onChange={(e) => updateSiteField('prayerTitle', e.target.value)} /></label>
+            <label className="form-group"><span className="form-label">Lieu des événements</span><input className="form-input" value={siteContent.serviceLocation || ''} onChange={(e) => updateSiteField('serviceLocation', e.target.value)} /></label>
+            <label className="form-group site-editor-full"><span className="form-label">Texte du bloc de prière</span><textarea className="form-input" rows="2" value={siteContent.prayerDescription || ''} onChange={(e) => updateSiteField('prayerDescription', e.target.value)} /></label>
+            <div className="site-editor-section-title">Galerie et événements</div>
             <label className="form-group site-editor-full"><span className="form-label">Photos de la galerie (une URL par ligne)</span><textarea className="form-input" rows="4" value={(siteContent.gallery || []).join('\n')} onChange={(e) => updateSiteField('gallery', e.target.value.split('\n').map((url) => url.trim()).filter(Boolean))} /></label>
+            <label className="site-upload-control site-editor-full"><ImageIcon size={17} />{siteUploading ? 'Téléversement…' : 'Ajouter une photo à la galerie'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => uploadSiteImage(event, 'gallery')} disabled={siteUploading} /></label>
             <label className="form-group site-editor-full"><span className="form-label">Horaires (un rendez-vous par ligne : Jour | Heure | Intitulé)</span><textarea className="form-input" rows="4" value={(siteContent.schedule || []).map((event) => `${event.day} | ${event.time} | ${event.title}`).join('\n')} onChange={(e) => updateSiteField('schedule', e.target.value.split('\n').map((line) => line.split('|').map((part) => part.trim())).filter((parts) => parts.length === 3 && parts.every(Boolean)).map(([day, time, title]) => ({ day, time, title })))} /></label>
-          </div>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={siteSaving}><Save size={18} />{siteSaving ? 'Publication…' : 'Publier les changements'}</button>
+          </div><aside className="site-live-preview"><span>Prévisualisation de la bannière</span><img src={siteContent.heroImage} alt="Aperçu de la bannière" onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }} /><strong>{siteContent.churchName || 'Nom de l’église'}</strong><h3>{siteContent.tagline || 'Titre de la bannière'}</h3><p>{siteContent.nextService}</p></aside></div>
+          <div className="site-editor-actions"><button type="button" className="btn btn-ghost btn-lg" onClick={resetSite}><RotateCcw size={17} /> Réinitialiser</button><button type="submit" className="btn btn-primary btn-lg" disabled={siteSaving || siteUploading}><Save size={18} />{siteSaving ? 'Publication…' : 'Publier les changements'}</button></div>
         </form>
       )}
 
