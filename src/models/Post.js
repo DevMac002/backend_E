@@ -6,7 +6,7 @@ const Post = sequelize.define('Post', {
   author_id: { type: DataTypes.INTEGER, allowNull: false },
   content: { type: DataTypes.TEXT, allowNull: true },
   media_path: { type: DataTypes.STRING(255), allowNull: true },
-  type: { type: DataTypes.ENUM('post', 'predication', 'annonce', 'sondage', 'quiz'), defaultValue: 'post' },
+  type: { type: DataTypes.ENUM('post', 'photo', 'predication', 'annonce', 'sondage', 'quiz'), defaultValue: 'post' },
   visible_to: { type: DataTypes.ENUM('all'), defaultValue: 'all' },
   options: { type: DataTypes.JSON, allowNull: true },
   reponse_correcte: { type: DataTypes.STRING(255), allowNull: true },

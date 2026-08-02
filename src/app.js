@@ -16,6 +16,7 @@ const notificationRoutes = require('./routes/notification.routes');
 const searchRoutes = require('./routes/search.routes');
 const adminRoutes = require('./routes/admin.routes');
 const mediaRoutes = require('./routes/media.routes');
+const storyRoutes = require('./routes/story.routes');
 const logsRoutes = require('./routes/logs.routes');
 const siteRoutes = require('./routes/site.routes');
 const docsRoutes = require('./docs.routes');
@@ -105,6 +106,7 @@ app.use('/notifications', notificationRoutes);
 app.use('/search', searchRoutes);
 app.use('/admin', adminRoutes);
 app.use('/media', mediaRoutes);
+app.use('/stories', storyRoutes);
 app.use('/logs', logsRoutes);
 app.use('/site', siteRoutes);
 app.use('/docs', docsRoutes);
@@ -113,7 +115,6 @@ app.use('/docs', docsRoutes);
 // working, but use the React homepage as the single public experience.
 app.get(['/site-web', '/site-web/'], (_req, res) => res.redirect(301, '/'));
 app.get('/site-web/*', (_req, res) => res.redirect(301, '/'));
-app.all(['/docs', '/docs/*'], (_req, res) => res.status(404).json({ message: 'Cette documentation n’est plus disponible.' }));
 
 const webAppDist = path.join(__dirname, '..', 'web-app', 'dist');
 const webAppIndex = path.join(webAppDist, 'index.html');

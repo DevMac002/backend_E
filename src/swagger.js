@@ -175,7 +175,7 @@ const openapi = {
         type: 'object',
         properties: {
           content: { type: 'string' },
-          type: { type: 'string', description: 'Type de publication: post, annonce, sondage, quiz, predication' },
+          type: { type: 'string', description: 'Type de publication: post, photo, annonce, sondage, quiz, predication' },
           choices: { type: 'array', items: { type: 'string' } },
           correct_answers: { type: 'array', items: { type: 'integer' } },
           quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'] },
@@ -243,6 +243,7 @@ const openapi = {
         type: 'object',
         properties: {
           content: { type: 'string' },
+          expires_at: { type: 'string', format: 'date-time' },
           media_path: { type: 'string' },
         },
       },
@@ -1237,7 +1238,16 @@ const openapi = {
         requestBody: {
           required: true,
           content: {
-            'application/json': { schema: { $ref: '#/components/schemas/StoryCreate' } },
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  content: { type: 'string' },
+                  expires_at: { type: 'string', format: 'date-time' },
+                  media: { type: 'string', format: 'binary' },
+                },
+              },
+            },
           },
         },
         responses: { '201': { description: 'Story créée' } },

@@ -3,6 +3,8 @@ const { saveUploadedFile } = require('../utils/file');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 
+const VALID_POST_TYPES = ['post', 'photo', 'annonce', 'sondage', 'quiz', 'predication'];
+const PROTECTED_TYPES = ['annonce', 'sondage', 'quiz', 'predication'];
 const QUIZ_TYPES = ['true_false', 'single_choice', 'multiple_choice'];
 
 function parseJsonValue(value) {
@@ -128,13 +130,17 @@ async function listPosts(req, res) {
 async function createPost(req, res) {
   try {
     const { content, type = 'post', visible_to = 'all', options, reponse_correcte, date_limite } = req.body;
-    const isProtectedType = ['annonce', 'sondage', 'quiz', 'predication'].includes(type);
+    if (!VALID_POST_TYPES.includes(type)) {
+      return res.status(400).json({ message: 'Type de publication invalide' });
+    }
+    const isProtectedType = PROTECTED_TYPES.includes(type);
     if (isProtectedType && !['admin', 'superadmin'].includes(req.user.status)) {
       return res.status(403).json({ message: 'Seuls les admins peuvent créer ce type de post' });
     }
     const quiz = type === 'quiz' ? normaliseQuizConfig(req.body) : null;
     if (quiz?.error) return res.status(400).json({ message: quiz.error });
     if (type === 'quiz' && !String(content || '').trim()) return res.status(400).json({ message: 'La question du quiz est obligatoire' });
+    if (type === 'photo' && !req.file) return res.status(400).json({ message: 'Une publication photo doit contenir un média' });
     if (type === 'post' && !String(content || '').trim() && !req.file) return res.status(400).json({ message: 'Le contenu du post ne peut pas être vide (texte ou média requis)' });
     let media_path = null;
     if (req.file) {
@@ -192,8 +198,14 @@ async function updatePost(req, res) {
   if (!post) return res.status(404).json({ message: 'Post introuvable' });
   if (post.author_id !== req.user.id && !['admin', 'superadmin'].includes(req.user.status)) return res.status(403).json({ message: 'Accès refusé' });
   const type = req.body.type || post.type;
-  if (['annonce', 'sondage', 'quiz', 'predication'].includes(type) && !['admin', 'superadmin'].includes(req.user.status)) {
+  if (!VALID_POST_TYPES.includes(type)) {
+    return res.status(400).json({ message: 'Type de publication invalide' });
+  }
+  if (PROTECTED_TYPES.includes(type) && !['admin', 'superadmin'].includes(req.user.status)) {
     return res.status(403).json({ message: 'Seuls les admins peuvent créer ou modifier ce type de post' });
+  }
+  if (type === 'photo' && !post.media_path) {
+    return res.status(400).json({ message: 'Une publication photo doit contenir un média' });
   }
   const quiz = type === 'quiz' && (req.body.quiz_type || req.body.quizType)
     ? normaliseQuizConfig(req.body)

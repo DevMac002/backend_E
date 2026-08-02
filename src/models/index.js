@@ -1,6 +1,8 @@
 const { sequelize } = require('../config/database');
 const User = require('./User');
 const Post = require('./Post');
+const Story = require('./Story');
+const StoryView = require('./StoryView');
 const PollVote = require('./PollVote');
 const Group = require('./Group');
 const GroupMember = require('./GroupMember');
@@ -19,6 +21,13 @@ const ChurchSiteConfig = require('./ChurchSiteConfig');
 
 User.hasMany(Post, { foreignKey: 'author_id' });
 Post.belongsTo(User, { foreignKey: 'author_id' });
+
+User.hasMany(Story, { foreignKey: 'user_id' });
+Story.belongsTo(User, { foreignKey: 'user_id' });
+Story.hasMany(StoryView, { foreignKey: 'story_id' });
+StoryView.belongsTo(Story, { foreignKey: 'story_id' });
+User.hasMany(StoryView, { foreignKey: 'user_id' });
+StoryView.belongsTo(User, { foreignKey: 'user_id' });
 
 User.hasMany(PollVote, { foreignKey: 'user_id' });
 Post.hasMany(PollVote, { foreignKey: 'post_id' });
@@ -85,6 +94,8 @@ module.exports = {
   sequelize,
   User,
   Post,
+  Story,
+  StoryView,
   PollVote,
   Group,
   GroupMember,
