@@ -26,6 +26,10 @@
       "value": "1"
     },
     {
+      "key": "storyId",
+      "value": "1"
+    },
+    {
       "key": "groupId",
       "value": "1"
     },
@@ -667,6 +671,104 @@
               "raw": "{{baseUrl}}/posts/{{postId}}/quiz-results",
               "host": ["{{baseUrl}}"],
               "path": ["posts", "{{postId}}", "quiz-results"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stories",
+      "item": [
+        {
+          "name": "List Stories",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"]
+            }
+          }
+        },
+        {
+          "name": "Create Story",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "type", "value": "text", "type": "text"},
+                {"key": "content", "value": "Bonjour depuis Postman", "type": "text"},
+                {"key": "background_color", "value": "#673AB7", "type": "text"},
+                {"key": "media", "type": "file", "src": []}
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"]
+            }
+          }
+        },
+        {
+          "name": "Get Story By Id",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories", "{{storyId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Story",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories", "{{storyId}}"]
+            }
+          }
+        },
+        {
+          "name": "Mark Story Viewed",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/stories/{{storyId}}/view",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories", "{{storyId}}", "view"]
+            }
+          }
+        },
+        {
+          "name": "List Story Viewers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/stories/{{storyId}}/viewers",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories", "{{storyId}}", "viewers"]
+            }
+          }
+        },
+        {
+          "name": "List User Stories",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": {
+              "raw": "{{baseUrl}}/stories/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories", "user", "{{userId}}"]
             }
           }
         }

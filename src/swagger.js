@@ -24,7 +24,7 @@ const openapi = {
     { name: 'Media', description: 'Médias stockés et suppression' },
     { name: 'Site', description: 'Contenu et upload CMS' },
     { name: 'Logs', description: 'Logs publics et export' },
-    { name: 'Stories', description: 'Stories éphémères et vues', deprecated: true },
+    { name: 'Stories', description: 'Stories éphémères et vues' },
   ],
   components: {
     securitySchemes: {
@@ -174,11 +174,31 @@ const openapi = {
       PostCreate: {
         type: 'object',
         properties: {
-          content: { type: 'string' },
-          type: { type: 'string', description: 'Type de publication: post, photo, annonce, sondage, quiz, predication' },
-          choices: { type: 'array', items: { type: 'string' } },
-          correct_answers: { type: 'array', items: { type: 'integer' } },
+          content: { type: 'string', description: 'Texte de la publication' },
+          type: {
+            type: 'string',
+            enum: ['text', 'image', 'video', 'audio', 'voice', 'document', 'poll', 'quiz', 'announcement', 'preaching', 'photo'],
+            description: 'Type de publication',
+          },
+          visibility: {
+            type: 'string',
+            enum: ['all', 'followers', 'private'],
+            description: 'Visibilité de la publication',
+          },
+          background_color: { type: 'string', description: 'Couleur de fond ou hex code' },
+          media: {
+            type: 'array',
+            items: { type: 'object', properties: { url: { type: 'string' }, type: { type: 'string' } } },
+            description: 'Liste des médias liés à la publication',
+          },
+          options: { type: ['array', 'object'], description: 'Options de sondage ou de quiz' },
+          question: { type: 'string', description: 'Question pour sondage ou quiz' },
+          multiple_choice: { type: 'boolean', description: 'Sondage multiple' },
+          correct_answers: { type: 'array', items: { type: 'string' }, description: 'Réponses correctes pour le quiz' },
           quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'] },
+          file_name: { type: 'string' },
+          file_size: { type: 'integer' },
+          mime_type: { type: 'string' },
         },
       },
       CommentCreate: {
@@ -242,9 +262,15 @@ const openapi = {
       StoryCreate: {
         type: 'object',
         properties: {
-          content: { type: 'string' },
-          expires_at: { type: 'string', format: 'date-time' },
-          media_path: { type: 'string' },
+          type: {
+            type: 'string',
+            enum: ['text', 'image', 'video', 'audio', 'voice'],
+            description: 'Type de story',
+          },
+          content: { type: 'string', description: 'Texte ou légende de la story' },
+          background_color: { type: 'string', description: 'Couleur de fond pour les stories textuelles' },
+          expires_at: { type: 'string', format: 'date-time', description: 'Date d’expiration de la story' },
+          media: { type: 'string', description: 'URL du média ou chemin de fichier' },
         },
       },
       StoryView: {
@@ -689,14 +715,27 @@ const openapi = {
         summary: 'Créer une publication',
         security: [{ bearerAuth: [] }],
         requestBody: {
-          required: false,
+          required: true,
           content: {
             'multipart/form-data': {
               schema: {
                 type: 'object',
                 properties: {
-                  content: { type: 'string' },
-                  type: { type: 'string' },
+                  content: { type: 'string', description: 'Texte du post' },
+                  type: {
+                    type: 'string',
+                    enum: ['text', 'image', 'video', 'audio', 'voice', 'document', 'poll', 'quiz', 'announcement', 'preaching', 'photo'],
+                    description: 'Type de publication',
+                  },
+                  visibility: {
+                    type: 'string',
+                    enum: ['all', 'followers', 'private'],
+                    description: 'Visibilité de la publication',
+                  },
+                  background_color: { type: 'string', description: 'Couleur de fond de la publication' },
+                  quiz_type: { type: 'string', enum: ['true_false', 'single_choice', 'multiple_choice'] },
+                  choices: { type: 'string', description: 'Options de quiz/sondage en JSON' },
+                  correct_answers: { type: 'string', description: 'Réponses correctes du quiz en JSON' },
                   file: { type: 'string', format: 'binary' },
                 },
               },
@@ -1222,18 +1261,22 @@ const openapi = {
       get: {
         tags: ['Stories'],
         summary: 'Lister le feed des stories',
-        description: 'Endpoint conceptuel pour la fonctionnalité Stories. Les routes Stories sont documentées mais peuvent ne pas être implémentées dans la version actuelle.',
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
           { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'user', in: 'query', schema: { type: 'integer' }, description: 'Filtrer par utilisateur' },
         ],
-        responses: { '200': { description: 'Stories listées' } },
+        responses: {
+          '200': {
+            description: 'Stories listées',
+            content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/StoryCreate' } } } },
+          },
+        },
       },
       post: {
         tags: ['Stories'],
         summary: 'Créer une story',
-        description: 'Endpoint conceptuel pour créer une story',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -1242,15 +1285,26 @@ const openapi = {
               schema: {
                 type: 'object',
                 properties: {
+                  type: {
+                    type: 'string',
+                    enum: ['text', 'image', 'video', 'audio', 'voice'],
+                  },
                   content: { type: 'string' },
+                  background_color: { type: 'string' },
                   expires_at: { type: 'string', format: 'date-time' },
                   media: { type: 'string', format: 'binary' },
                 },
+                required: ['type'],
               },
             },
           },
         },
-        responses: { '201': { description: 'Story créée' } },
+        responses: {
+          '201': {
+            description: 'Story créée',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/StoryCreate' } } },
+          },
+        },
       },
     },
     '/stories/{id}': {
