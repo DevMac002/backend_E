@@ -18,6 +18,7 @@ const adminRoutes = require('./routes/admin.routes');
 const mediaRoutes = require('./routes/media.routes');
 const logsRoutes = require('./routes/logs.routes');
 const siteRoutes = require('./routes/site.routes');
+const docsRoutes = require('./docs.routes');
 const dbMiddleware = require('./middlewares/db.middleware');
 const auditMiddleware = require('./middlewares/audit.middleware');
 
@@ -106,6 +107,7 @@ app.use('/admin', adminRoutes);
 app.use('/media', mediaRoutes);
 app.use('/logs', logsRoutes);
 app.use('/site', siteRoutes);
+app.use('/docs', docsRoutes);
 
 // `site-web` was the former standalone landing page. Keep old bookmarks
 // working, but use the React homepage as the single public experience.
