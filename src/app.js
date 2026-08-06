@@ -41,15 +41,28 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const isLocalhostOrigin = (origin) =>
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
 const corsMiddleware = (req, res, next) => {
   const corsOptions = {
     origin(origin, callback) {
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.length > 0) {
-        return allowedOrigins.includes(origin)
-          ? callback(null, true)
-          : callback(new Error('Origine non autorisée par CORS'));
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        if (process.env.NODE_ENV !== 'production' && isLocalhostOrigin(origin)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Origine non autorisée par CORS'));
+      }
+
+      if (process.env.NODE_ENV !== 'production' && isLocalhostOrigin(origin)) {
+        return callback(null, true);
       }
 
       const requestOrigin = `${req.protocol}://${req.get('host')}`;
