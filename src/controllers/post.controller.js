@@ -1,5 +1,14 @@
-const { Post, PollVote, User, Like, Comment, QuizAnswer, Notification, Op } = require('../models');
-const { saveUploadedFile } = require('../utils/file');
+const {
+  Post,
+  PollVote,
+  User,
+  Like,
+  Comment,
+  QuizAnswer,
+  Notification,
+} = require('../models');
+
+const { Op } = require('sequelize');const { saveUploadedFile } = require('../utils/file');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 

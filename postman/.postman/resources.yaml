@@ -2,6 +2,8 @@
 workspace:
   id: fddb0ff1-fd53-4f70-8911-bf4b02893cfa
 
-localResources:
-  collections:
-    - ../epika-social-full-api.postman_collection.json
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

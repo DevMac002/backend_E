@@ -480,6 +480,15 @@
               "formdata": [
                 {"key": "content", "value": "Bonjour depuis Postman", "type": "text"},
                 {"key": "type", "value": "post", "type": "text"},
+                {"key": "visible_to", "value": "all", "type": "text"},
+                {"key": "options", "value": "", "type": "text"},
+                {"key": "reponse_correcte", "value": "", "type": "text"},
+                {"key": "date_limite", "value": "", "type": "text"},
+                {"key": "location", "value": "", "type": "text"},
+                {"key": "hide_like_count", "value": "false", "type": "text"},
+                {"key": "disable_comments", "value": "false", "type": "text"},
+                {"key": "scheduled_at", "value": "", "type": "text"},
+                {"key": "tagged_usernames", "value": "[]", "type": "text"},
                 {"key": "file", "type": "file", "src": []}
               ]
             },
@@ -702,6 +711,7 @@
                 {"key": "type", "value": "text", "type": "text"},
                 {"key": "content", "value": "Bonjour depuis Postman", "type": "text"},
                 {"key": "background_color", "value": "#673AB7", "type": "text"},
+                {"key": "duration", "value": "10", "type": "text"},
                 {"key": "media", "type": "file", "src": []}
               ]
             },
