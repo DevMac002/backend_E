@@ -7,7 +7,7 @@ const ALLOWED_MEDIA_TYPES = new Set([...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TY
 
 const upload = multer({
   storage,
-  limits: { fileSize: Number(process.env.UPLOAD_MAX_SIZE_MB || 25) * 1024 * 1024 },
+  limits: { fileSize: Number(process.env.UPLOAD_MAX_SIZE_MB || 90) * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
     if (!ALLOWED_MEDIA_TYPES.has(file.mimetype)) {
       return callback(new multer.MulterError('LIMIT_UNEXPECTED_FILE', file.fieldname));
