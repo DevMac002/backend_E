@@ -141,6 +141,9 @@ async function listPosts(req, res) {
 
 async function createPost(req, res) {
   try {
+    console.log(`[post:create] user=${req.user?.id || 'unknown'} method=${req.method} url=${req.originalUrl}`);
+    console.log(`[post:create] body keys=${Object.keys(req.body || {}).join(',')}`);
+    console.log(`[post:create] file=${req.file ? `${req.file.originalname} (${req.file.mimetype})` : 'none'}`);
     const {
       content,
       type = 'post',
@@ -218,8 +221,13 @@ async function createPost(req, res) {
     }
     res.status(201).json(post);
   } catch (error) {
-    console.error('[post:create]', error.message);
-    res.status(500).json({ message: 'Erreur serveur lors de la création du post', error: error.message });
+    console.error('[post:create] error', error);
+    const payload = { message: 'Erreur serveur lors de la création du post' };
+    if (process.env.NODE_ENV !== 'production') {
+      payload.error = error.message;
+      payload.stack = error.stack;
+    }
+    return res.status(500).json(payload);
   }
 }
 

@@ -399,6 +399,87 @@ Les fichiers téléchargés sont stockés en base de données et accessibles via
 GET /media/:id
 ```
 
+## 10. Run locally with Docker (MariaDB + App)
+
+This section shows how to run a local MariaDB instance with Docker, build the backend image (with libvips/libheif installed so Sharp can decode HEIC), run migrations and test uploads.
+
+1) Start a MariaDB container:
+
+```bash
+docker run --name epika-mariadb -e MYSQL_ROOT_PASSWORD=rootpass -e MYSQL_DATABASE=epika_social -e MYSQL_USER=dbuser -e MYSQL_PASSWORD=dbpass -p 3306:3306 -d mariadb:10.11
+```
+
+2) Create a `.env.local` file (copy `.env.example` and update the DB values):
+
+```env
+PORT=3000
+NODE_ENV=development
+DB_HOST=host.docker.internal # macOS/Windows, or 127.0.0.1 on Linux
+DB_PORT=3306
+DB_NAME=epika_social
+DB_USER=dbuser
+DB_PASSWORD=dbpass
+DB_DIALECT=mariadb
+UPLOAD_MAX_SIZE_MB=90
+# JWT and others...
+JWT_SECRET=change_me
+JWT_REFRESH_SECRET=change_me_refresh
+```
+
+3) Build the app image (Dockerfile installs libvips/libheif):
+
+```bash
+docker build -t epika-backend:local .
+```
+
+4a) Run the container (production-like):
+
+```bash
+docker run --rm --name epika-backend -p 3000:3000 \
+  --env-file .env.local \
+  epika-backend:local
+```
+
+4b) Or run interactively (bind mount source for live edits):
+
+```bash
+docker run --rm --name epika-backend-dev -p 3000:3000 \
+  -v "$PWD":/app -w /app \
+  --env-file .env.local \
+  epika-backend:local npm run dev
+```
+
+5) Run migrations (inside container or locally):
+
+```bash
+# if image built and container running with bash, or from host with npm installed:
+npm run db:migrate
+```
+
+6) Test upload (replace <accessToken> with a valid token):
+
+Simple post (no file):
+```bash
+curl -v -X POST http://localhost:3000/posts \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "content=Test depuis curl" \
+  -F "type=post"
+```
+
+Post with file:
+```bash
+curl -v -X POST http://localhost:3000/posts \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "content=Photo depuis curl" \
+  -F "type=photo" \
+  -F "file=@/full/path/to/photo.jpg"
+```
+
+Notes:
+- Use `host.docker.internal` for DB host on macOS/Windows Docker Desktop; use `127.0.0.1` on Linux.
+- If you see sharp errors for HEIC, install libvips with HEIC support on the host or ensure the Docker image includes `libheif` (the Dockerfile below does).
+
+
 #### Supprimer un média
 ```http
 DELETE /media/:id
