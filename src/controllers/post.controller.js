@@ -1,21 +1,11 @@
-const {
-  Post,
-  PollVote,
-  User,
-  Like,
-  Comment,
-  QuizAnswer,
-  Notification,
-} = require('../models');
-
-const { Op } = require('sequelize');const { saveUploadedFile } = require('../utils/file');
+const { Post, PollVote, User, Like, Comment, QuizAnswer, Notification, Op } = require('../models');
+const { saveUploadedFile } = require('../utils/file');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 const { getPaginationParams, buildPaginatedResponse } = require('../utils/pagination');
 
 const VALID_POST_TYPES = ['post', 'photo', 'annonce', 'sondage', 'quiz', 'predication'];
 const PROTECTED_TYPES = ['annonce', 'sondage', 'quiz', 'predication'];
 const QUIZ_TYPES = ['true_false', 'single_choice', 'multiple_choice'];
-const VALID_VISIBILITIES = ['all', 'followers', 'only_me'];
 
 function parseJsonValue(value) {
   if (typeof value !== 'string') return value;
@@ -24,12 +14,6 @@ function parseJsonValue(value) {
   } catch (_error) {
     return value;
   }
-}
-
-function parseTaggedUsernames(raw) {
-  const usernames = parseJsonValue(raw);
-  if (!Array.isArray(usernames)) return [];
-  return [...new Set(usernames.map(String).filter(Boolean))];
 }
 
 function normaliseQuizConfig(body) {
@@ -93,6 +77,7 @@ function getQuizConfig(post) {
   const options = parseJsonValue(post.options);
   if (options && !Array.isArray(options) && QUIZ_TYPES.includes(options.quiz_type)) return options;
 
+  // Compatibilité des quiz créés avant les formats structurés.
   const choices = Array.isArray(options) ? options.map((label) => ({ id: String(label), label: String(label) })) : [];
   return {
     quiz_type: 'single_choice',
@@ -123,13 +108,7 @@ function postForViewer(post, viewer) {
 
 async function listPosts(req, res) {
   const { page, limit, offset } = getPaginationParams(req.query);
-  const where = {
-    type: 'post',
-    [Op.or]: [
-      { status: 'published' },
-      { author_id: req.user.id }, // l'auteur voit aussi ses propres posts programmés
-    ],
-  };
+  const where = { type: 'post' };
   if (req.query.search) where.content = { [Op.like]: `%${req.query.search}%` };
   const [posts, total] = await Promise.all([
     Post.findAll({
@@ -150,28 +129,9 @@ async function listPosts(req, res) {
 
 async function createPost(req, res) {
   try {
-    console.log(`[post:create] user=${req.user?.id || 'unknown'} method=${req.method} url=${req.originalUrl}`);
-    console.log(`[post:create] body keys=${Object.keys(req.body || {}).join(',')}`);
-    console.log(`[post:create] file=${req.file ? `${req.file.originalname} (${req.file.mimetype})` : 'none'}`);
-    const {
-      content,
-      type = 'post',
-      visible_to = 'all',
-      options,
-      reponse_correcte,
-      date_limite,
-      location,
-      hide_like_count,
-      disable_comments,
-      scheduled_at,
-      tagged_usernames,
-    } = req.body;
-
+    const { content, type = 'post', visible_to = 'all', options, reponse_correcte, date_limite } = req.body;
     if (!VALID_POST_TYPES.includes(type)) {
       return res.status(400).json({ message: 'Type de publication invalide' });
-    }
-    if (!VALID_VISIBILITIES.includes(visible_to)) {
-      return res.status(400).json({ message: 'Audience de publication invalide' });
     }
     const isProtectedType = PROTECTED_TYPES.includes(type);
     if (isProtectedType && !['admin', 'superadmin'].includes(req.user.status)) {
@@ -182,7 +142,6 @@ async function createPost(req, res) {
     if (type === 'quiz' && !String(content || '').trim()) return res.status(400).json({ message: 'La question du quiz est obligatoire' });
     if (type === 'photo' && !req.file) return res.status(400).json({ message: 'Une publication photo doit contenir un média' });
     if (type === 'post' && !String(content || '').trim() && !req.file) return res.status(400).json({ message: 'Le contenu du post ne peut pas être vide (texte ou média requis)' });
-
     let media_path = null;
     if (req.file) {
       try {
@@ -191,23 +150,6 @@ async function createPost(req, res) {
         return res.status(400).json({ message: 'Erreur lors du téléversement du fichier média', error: uploadError.message });
       }
     }
-
-    let scheduledAt = null;
-    if (scheduled_at) {
-      scheduledAt = new Date(scheduled_at);
-      if (Number.isNaN(scheduledAt.getTime())) {
-        return res.status(400).json({ message: 'Date de programmation invalide' });
-      }
-    }
-    const status = scheduledAt && scheduledAt > new Date() ? 'scheduled' : 'published';
-
-    let taggedUserIds = null;
-    const usernames = parseTaggedUsernames(tagged_usernames);
-    if (usernames.length) {
-      const users = await User.findAll({ where: { username: usernames }, attributes: ['id'] });
-      taggedUserIds = users.map((u) => u.id);
-    }
-
     const post = await Post.create({
       author_id: req.user.id,
       content,
@@ -217,26 +159,14 @@ async function createPost(req, res) {
       options: quiz?.config || parseJsonValue(options) || null,
       reponse_correcte: quiz?.config.correct_answers[0] || reponse_correcte || null,
       date_limite: date_limite || null,
-      location: location || null,
-      hide_like_count: hide_like_count === 'true' || hide_like_count === true,
-      disable_comments: disable_comments === 'true' || disable_comments === true,
-      scheduled_at: scheduledAt,
-      status,
-      tagged_user_ids: taggedUserIds,
     });
-
-    if (isRealtimeEnabled && status === 'published') {
+    if (isRealtimeEnabled) {
       await triggerRealtimeEvent('public', 'post:new', { postId: post.id, authorId: req.user.id, type: post.type });
     }
     res.status(201).json(post);
   } catch (error) {
-    console.error('[post:create] error', error);
-    const payload = { message: 'Erreur serveur lors de la création du post' };
-    if (process.env.NODE_ENV !== 'production') {
-      payload.error = error.message;
-      payload.stack = error.stack;
-    }
-    return res.status(500).json(payload);
+    console.error('[post:create]', error.message);
+    res.status(500).json({ message: 'Erreur serveur lors de la création du post', error: error.message });
   }
 }
 
@@ -277,9 +207,6 @@ async function updatePost(req, res) {
   if (type === 'photo' && !post.media_path) {
     return res.status(400).json({ message: 'Une publication photo doit contenir un média' });
   }
-  if (req.body.visible_to && !VALID_VISIBILITIES.includes(req.body.visible_to)) {
-    return res.status(400).json({ message: 'Audience de publication invalide' });
-  }
   const quiz = type === 'quiz' && (req.body.quiz_type || req.body.quizType)
     ? normaliseQuizConfig(req.body)
     : null;
@@ -287,33 +214,12 @@ async function updatePost(req, res) {
   if (type === 'quiz' && post.type !== 'quiz' && !quiz) return res.status(400).json({ message: 'Choisissez le format et les réponses du quiz' });
   const content = req.body.content ?? post.content;
   if (type === 'quiz' && !String(content || '').trim()) return res.status(400).json({ message: 'La question du quiz est obligatoire' });
-
-  let taggedUserIds = post.tagged_user_ids;
-  if (req.body.tagged_usernames !== undefined) {
-    const usernames = parseTaggedUsernames(req.body.tagged_usernames);
-    if (usernames.length) {
-      const users = await User.findAll({ where: { username: usernames }, attributes: ['id'] });
-      taggedUserIds = users.map((u) => u.id);
-    } else {
-      taggedUserIds = null;
-    }
-  }
-
   await post.update({
     content,
     type,
-    visible_to: req.body.visible_to ?? post.visible_to,
     options: quiz?.config || post.options,
     reponse_correcte: quiz?.config?.correct_answers[0] || post.reponse_correcte,
     date_limite: req.body.date_limite ?? post.date_limite,
-    location: req.body.location ?? post.location,
-    hide_like_count: req.body.hide_like_count !== undefined
-      ? (req.body.hide_like_count === 'true' || req.body.hide_like_count === true)
-      : post.hide_like_count,
-    disable_comments: req.body.disable_comments !== undefined
-      ? (req.body.disable_comments === 'true' || req.body.disable_comments === true)
-      : post.disable_comments,
-    tagged_user_ids: taggedUserIds,
   });
   res.json(post);
 }
@@ -359,9 +265,6 @@ async function listComments(req, res) {
 async function addComment(req, res) {
   const post = await Post.findByPk(req.params.id);
   if (!post) return res.status(404).json({ message: 'Post introuvable' });
-  if (post.disable_comments && post.author_id !== req.user.id) {
-    return res.status(403).json({ message: 'Les commentaires sont désactivés pour cette publication' });
-  }
   const content = req.body.content;
   if (!content || !String(content).trim()) return res.status(400).json({ message: 'Le contenu du commentaire est obligatoire' });
   if (String(content).length > 2000) return res.status(400).json({ message: 'Le commentaire ne peut pas dépasser 2000 caractères' });
