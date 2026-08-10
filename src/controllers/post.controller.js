@@ -142,10 +142,13 @@ async function createPost(req, res) {
     if (type === 'quiz' && !String(content || '').trim()) return res.status(400).json({ message: 'La question du quiz est obligatoire' });
     if (type === 'photo' && !req.file) return res.status(400).json({ message: 'Une publication photo doit contenir un média' });
     if (type === 'post' && !String(content || '').trim() && !req.file) return res.status(400).json({ message: 'Le contenu du post ne peut pas être vide (texte ou média requis)' });
-    let media_path = null;
+   let media_path = null;
+   let mime_type = null;
+    
     if (req.file) {
       try {
         media_path = await saveUploadedFile(req.file, req.user.id, 'post');
+        mime_type = req.file.mimetype;
       } catch (uploadError) {
         return res.status(400).json({ message: 'Erreur lors du téléversement du fichier média', error: uploadError.message });
       }
@@ -154,6 +157,7 @@ async function createPost(req, res) {
       author_id: req.user.id,
       content,
       media_path,
+      mime_type,
       type,
       visible_to,
       options: quiz?.config || parseJsonValue(options) || null,
@@ -218,6 +222,7 @@ async function updatePost(req, res) {
     content,
     type,
     options: quiz?.config || post.options,
+    mime_type: req.body.mime_type || post.mime_type,
     reponse_correcte: quiz?.config?.correct_answers[0] || post.reponse_correcte,
     date_limite: req.body.date_limite ?? post.date_limite,
   });
