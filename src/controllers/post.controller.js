@@ -163,7 +163,7 @@ async function createPost(req, res) {
       type,
       visible_to,
       options: quiz?.config || parseJsonValue(options) || null,
-      reponse_correcte: quiz?.config.correct_answers[0] || reponse_correcte || null,
+      reponse_correcte: quiz?.config?.correct_answers?.[0] || reponse_correcte || null,
       date_limite: date_limite || null,
     });
     if (isRealtimeEnabled) {
@@ -225,7 +225,7 @@ async function updatePost(req, res) {
     type,
     options: quiz?.config || post.options,
     mime_type: req.body.mime_type || post.mime_type,
-    reponse_correcte: quiz?.config?.correct_answers[0] || post.reponse_correcte,
+    reponse_correcte: quiz?.config?.correct_answers?.[0] || reponse_correcte || null,
     date_limite: req.body.date_limite ?? post.date_limite,
   });
   res.json(post);
