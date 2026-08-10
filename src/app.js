@@ -161,14 +161,32 @@ if (fs.existsSync(webAppDist) && fs.existsSync(webAppIndex)) {
 }
 
 app.use((error, _req, res, _next) => {
+  console.error('========================');
+  console.error('ERREUR SERVEUR');
+  console.error(error);
+  console.error(error.stack);
+  console.error('========================');
+
   if (error?.message === 'Origine non autorisée par CORS') {
-    return res.status(403).json({ message: 'Origine non autorisée' });
+    return res.status(403).json({
+      message: 'Origine non autorisée',
+      error: error.message,
+    });
   }
+
   if (error?.name === 'MulterError') {
-    return res.status(400).json({ message: 'Fichier invalide ou trop volumineux' });
+    return res.status(400).json({
+      message: 'Fichier invalide ou trop volumineux',
+      error: error.message,
+    });
   }
-  console.error('Unhandled request error:', error);
-  return res.status(500).json({ message: 'Erreur serveur' });
+
+  return res.status(500).json({
+    message: 'Erreur serveur',
+    error: error.message,
+    stack: error.stack,
+  });
 });
+
 
 module.exports = { app };
