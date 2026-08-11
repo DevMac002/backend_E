@@ -7,14 +7,53 @@ const router = express.Router();
 
 router.get('/:id', async (req, res) => {
   const media = await Media.findByPk(req.params.id);
-  if (!media) return res.status(404).json({ message: 'Fichier introuvable' });
-  res.set('Content-Type', media.mime_type);
-  res.set('Content-Length', String(media.size));
-  res.set('Cache-Control', 'public, max-age=31536000, immutable');
-  res.set('X-Content-Type-Options', 'nosniff');
-  const safeName = String(media.original_name || media.filename).replace(/[\r\n"\\]/g, '_');
-  res.set('Content-Disposition', `inline; filename="${safeName}"`);
-  res.send(media.data);
+
+  if (!media) {
+    return res.status(404).json({
+      message: 'Fichier introuvable',
+    });
+  }
+
+  const mimeType = media.mime_type || 'application/octet-stream';
+
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename="${media.original_name || media.filename}"`
+  );
+
+  const fileSize = media.data.length;
+  const range = req.headers.range;
+
+  if (range && mimeType.startsWith('video/')) {
+    const parts = range.replace(/bytes=/, '').split('-');
+
+    const start = parseInt(parts[0], 10);
+    const end = parts[1]
+      ? parseInt(parts[1], 10)
+      : fileSize - 1;
+
+    const chunkSize = end - start + 1;
+
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': mimeType,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    });
+
+    return res.end(media.data.slice(start, end + 1));
+  }
+
+  res.writeHead(200, {
+    'Content-Length': fileSize,
+    'Content-Type': mimeType,
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  });
+
+  return res.end(media.data);
 });
 
 router.delete('/:id', authMiddleware, requireNotBanned, async (req, res) => {
