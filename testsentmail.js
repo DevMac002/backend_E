@@ -17,6 +17,9 @@ async function testSMTP() {
         pass: process.env.SMTP_PASS,
       },
       family: 4,
+      lookup: (hostname, options, callback) => {
+        return dns.lookup(hostname, { ...options, family: 4 }, callback);
+      },
     });
 
     console.log('Connexion SMTP...');

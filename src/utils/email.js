@@ -27,6 +27,9 @@ const transporter = nodemailer.createTransport({
     pass: smtpPass,
   },
   family: 4,
+  lookup: (hostname, options, callback) => {
+    return dns.lookup(hostname, { ...options, family: 4 }, callback);
+  },
 });
 
 function escapeHtml(value = '') {
