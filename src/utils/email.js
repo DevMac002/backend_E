@@ -124,25 +124,76 @@ function buildEmailTemplate({
     </div>`;
 }
 
+async function sendMailViaResend({ to, subject, html, text }) {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  const rawFrom = (process.env.RESEND_FROM || process.env.SMTP_FROM || 'Epika Social <onboarding@resend.dev>').trim();
+  const from = rawFrom.includes('@') ? rawFrom : 'Epika Social <onboarding@resend.dev>';
+
+  if (!apiKey) {
+    return { ok: false, reason: 'missing_resend_api_key' };
+  }
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        text,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Resend API Error Response:', data);
+      return { ok: false, reason: data.message || 'resend_api_error' };
+    }
+
+    return { ok: true, messageId: data.id };
+  } catch (error) {
+    console.error('Resend HTTP Request Failed:', error);
+    return { ok: false, reason: error.message };
+  }
+}
+
 async function sendMail({ to, subject, html, text }) {
+  const resendResult = await sendMailViaResend({ to, subject, html, text });
+  if (resendResult.ok) {
+    return resendResult;
+  }
+
+  console.warn('Resend REST API send failed or unavailable, trying SMTP fallback...', resendResult.reason);
+
   const { smtpPass, normalizedSmtpUser } = getSmtpCredentials();
 
   if (!normalizedSmtpUser || !smtpPass) {
     console.warn('SMTP credentials not configured. Email not sent.');
-    return { ok: false, reason: 'missing_credentials' };
+    return { ok: false, reason: resendResult.reason || 'missing_credentials' };
   }
 
-  const transporter = await createTransporter();
+  try {
+    const transporter = await createTransporter();
 
-  const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || normalizedSmtpUser,
-    to,
-    subject,
-    html,
-    text,
-  });
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM || normalizedSmtpUser,
+      to,
+      subject,
+      html,
+      text,
+    });
 
-  return { ok: true, messageId: info.messageId };
+    return { ok: true, messageId: info.messageId };
+  } catch (smtpError) {
+    console.error('SMTP Fallback Error:', smtpError);
+    return { ok: false, reason: smtpError.message };
+  }
 }
 
 async function sendWelcomeEmail(user) {
