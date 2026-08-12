@@ -79,10 +79,32 @@ router.post('/register', registerLimiter, async (req, res) => {
       });
     }
 
-    console.log('Creating user...');
-
     const password_hash = await bcrypt.hash(value.password, 10);
     const otpCode = generateOtpCode();
+
+    let emailResult;
+    try {
+      console.log('Sending verification email...');
+      emailResult = await sendVerificationCodeEmail(value.email, otpCode);
+    } catch (emailError) {
+      console.error('EMAIL ERROR:', emailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Impossible d’envoyer l’e-mail de vérification. L’inscription n’a pas été effectuée.',
+        error: emailError.message,
+      });
+    }
+
+    if (!emailResult || !emailResult.ok) {
+      console.error('Email sending failed:', emailResult?.reason);
+      return res.status(500).json({
+        success: false,
+        message: 'Impossible d’envoyer l’e-mail de vérification. L’inscription n’a pas été effectuée.',
+        error: emailResult?.reason || 'email_send_failed',
+      });
+    }
+
+    console.log('Verification email sent successfully. Creating user...');
 
     const user = await User.create({
       username: value.username,
@@ -96,20 +118,6 @@ router.post('/register', registerLimiter, async (req, res) => {
     });
 
     console.log('User created:', user.id);
-
-    try {
-      console.log('Sending verification email...');
-
-      await sendVerificationCodeEmail(
-        user.email,
-        otpCode
-      );
-
-      console.log('Verification email sent');
-    } catch (emailError) {
-      console.error('EMAIL ERROR:', emailError);
-    }
-
     console.log('Sending response to client...');
 
     return res.status(201).json({
