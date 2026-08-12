@@ -5,32 +5,43 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 
 const nodemailer = require('nodemailer');
 
-const smtpUser = (process.env.SMTP_USER || '').trim();
-const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+function getSmtpCredentials() {
+  const smtpUser = (process.env.SMTP_USER || '').trim();
+  const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+  const normalizedSmtpUser = smtpUser.includes('@')
+    ? smtpUser
+    : smtpUser
+      ? `${smtpUser}@gmail.com`
+      : '';
+  const port = Number(process.env.SMTP_PORT || 465);
+  const isSecure = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : port === 465;
 
-const normalizedSmtpUser = smtpUser.includes('@')
-  ? smtpUser
-  : smtpUser
-    ? `${smtpUser}@gmail.com`
-    : '';
+  return { smtpUser, smtpPass, normalizedSmtpUser, port, isSecure };
+}
 
-const port = Number(process.env.SMTP_PORT || 587);
-const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
+function createTransporter() {
+  const { smtpPass, normalizedSmtpUser, port, isSecure } = getSmtpCredentials();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port,
-  secure: isSecure,
-  requireTLS: !isSecure,
-  auth: {
-    user: normalizedSmtpUser,
-    pass: smtpPass,
-  },
-  family: 4,
-  lookup: (hostname, options, callback) => {
-    return dns.lookup(hostname, { ...options, family: 4 }, callback);
-  },
-});
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port,
+    secure: isSecure,
+    requireTLS: !isSecure,
+    auth: {
+      user: normalizedSmtpUser,
+      pass: smtpPass,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    family: 4,
+    lookup: (hostname, options, callback) => {
+      return dns.lookup(hostname, { ...options, family: 4 }, callback);
+    },
+  });
+}
 
 function escapeHtml(value = '') {
   return String(value)
@@ -89,10 +100,14 @@ function buildEmailTemplate({
 }
 
 async function sendMail({ to, subject, html, text }) {
+  const { smtpPass, normalizedSmtpUser } = getSmtpCredentials();
+
   if (!normalizedSmtpUser || !smtpPass) {
     console.warn('SMTP credentials not configured. Email not sent.');
     return { ok: false, reason: 'missing_credentials' };
   }
+
+  const transporter = createTransporter();
 
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || normalizedSmtpUser,

@@ -7,15 +7,23 @@ const nodemailer = require('nodemailer');
 
 async function testSMTP() {
   try {
+    const port = Number(process.env.SMTP_PORT || 465);
+    const isSecure = process.env.SMTP_SECURE !== undefined
+      ? process.env.SMTP_SECURE === 'true'
+      : port === 465;
+
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      requireTLS: true,
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port,
+      secure: isSecure,
+      requireTLS: !isSecure,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
       family: 4,
       lookup: (hostname, options, callback) => {
         return dns.lookup(hostname, { ...options, family: 4 }, callback);
