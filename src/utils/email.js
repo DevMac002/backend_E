@@ -126,8 +126,8 @@ function buildEmailTemplate({
 
 async function sendMailViaResend({ to, subject, html, text }) {
   const apiKey = (process.env.RESEND_API_KEY || '').trim();
-  const rawFrom = (process.env.RESEND_FROM || process.env.SMTP_FROM || 'Epika Social <onboarding@resend.dev>').trim();
-  const from = rawFrom.includes('@') ? rawFrom : 'Epika Social <onboarding@resend.dev>';
+  const rawFrom = (process.env.RESEND_FROM || 'Epika Social <onboarding@resend.dev>').trim();
+  const from = rawFrom.includes('@') ? rawFrom : `Epika Social <${rawFrom}>`;
 
   if (!apiKey) {
     return { ok: false, reason: 'missing_resend_api_key' };
