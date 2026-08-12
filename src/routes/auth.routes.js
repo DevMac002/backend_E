@@ -43,21 +43,47 @@ const changePasswordSchema = Joi.object({
 });
 
 router.post('/register', registerLimiter, async (req, res) => {
+  console.log('=== REGISTER START ===');
+
   try {
     const { value, error } = registerSchema.validate(req.body);
-    if (error) return res.status(400).json({ message: error.message });
 
-    const existingByEmail = await User.findOne({ where: { email: value.email } });
+    if (error) {
+      console.log('Validation error:', error.message);
+      return res.status(400).json({
+        message: error.message,
+      });
+    }
+
+    console.log('Validation OK');
+
+    const existingByEmail = await User.findOne({
+      where: { email: value.email }
+    });
+
     if (existingByEmail) {
-      return res.status(409).json({ message: 'Cet email est déjà utilisé par un autre compte' });
+      console.log('Email already exists');
+      return res.status(409).json({
+        message: 'Cet email est déjà utilisé par un autre compte'
+      });
     }
-    const existingByUsername = await User.findOne({ where: { username: value.username } });
+
+    const existingByUsername = await User.findOne({
+      where: { username: value.username }
+    });
+
     if (existingByUsername) {
-      return res.status(409).json({ message: 'Ce nom d’utilisateur est déjà pris' });
+      console.log('Username already exists');
+      return res.status(409).json({
+        message: 'Ce nom d’utilisateur est déjà pris'
+      });
     }
+
+    console.log('Creating user...');
 
     const password_hash = await bcrypt.hash(value.password, 10);
     const otpCode = generateOtpCode();
+
     const user = await User.create({
       username: value.username,
       email: value.email,
@@ -69,19 +95,45 @@ router.post('/register', registerLimiter, async (req, res) => {
       verification_attempts: 0,
     });
 
+    console.log('User created:', user.id);
+
     try {
-      await sendVerificationCodeEmail(user.email, otpCode);
+      console.log('Sending verification email...');
+
+      await sendVerificationCodeEmail(
+        user.email,
+        otpCode
+      );
+
+      console.log('Verification email sent');
     } catch (emailError) {
-      console.warn('Verification email could not be sent:', emailError.message);
+      console.error('EMAIL ERROR:', emailError);
     }
 
-    res.status(201).json({
-      message: 'Inscription effectuée. Vérifiez votre email avec le code envoyé.',
-      user: { id: user.id, username: user.username, email: user.email, is_verified: user.is_verified },
+    console.log('Sending response to client...');
+
+    return res.status(201).json({
+      success: true,
+      message:
+        'Inscription effectuée. Vérifiez votre email avec le code envoyé.',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        is_verified: user.is_verified,
+      },
     });
+
   } catch (e) {
-    console.error('[auth:register]', e.message);
-    res.status(500).json({ message: 'Erreur serveur lors de l’inscription', error: e.message });
+    console.error('REGISTER ERROR');
+    console.error(e);
+    console.error(e.stack);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l’inscription',
+      error: e.message,
+    });
   }
 });
 
