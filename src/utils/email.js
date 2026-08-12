@@ -5,6 +5,8 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 
 const nodemailer = require('nodemailer');
 
+const dnsPromises = dns.promises;
+
 function getSmtpCredentials() {
   const smtpUser = (process.env.SMTP_USER || process.env.SMTP_FROM || '').trim();
   const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
@@ -21,11 +23,28 @@ function getSmtpCredentials() {
   return { smtpUser, smtpPass, normalizedSmtpUser, port, isSecure };
 }
 
-function createTransporter() {
+async function resolveIPv4(host) {
+  if (!host || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+    return host;
+  }
+  try {
+    const addresses = await dnsPromises.resolve4(host);
+    if (addresses && addresses.length > 0) {
+      return addresses[0];
+    }
+  } catch (err) {
+    console.warn(`DNS resolve4 failed for ${host}:`, err.message);
+  }
+  return host;
+}
+
+async function createTransporter() {
   const { smtpPass, normalizedSmtpUser, port, isSecure } = getSmtpCredentials();
+  const originalHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const targetHost = await resolveIPv4(originalHost);
 
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host: targetHost,
     port,
     secure: isSecure,
     requireTLS: !isSecure,
@@ -33,13 +52,13 @@ function createTransporter() {
       user: normalizedSmtpUser,
       pass: smtpPass,
     },
+    tls: {
+      servername: originalHost,
+    },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
     family: 4,
-    lookup: (hostname, options, callback) => {
-      return dns.lookup(hostname, { ...options, family: 4 }, callback);
-    },
   });
 }
 
@@ -107,7 +126,7 @@ async function sendMail({ to, subject, html, text }) {
     return { ok: false, reason: 'missing_credentials' };
   }
 
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
 
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || normalizedSmtpUser,
