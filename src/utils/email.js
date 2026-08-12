@@ -1,6 +1,11 @@
 const dns = require('dns');
+const net = require('net');
+
 if (typeof dns.setDefaultResultOrder === 'function') {
   dns.setDefaultResultOrder('ipv4first');
+}
+if (typeof net.setDefaultAutoSelectFamily === 'function') {
+  net.setDefaultAutoSelectFamily(false);
 }
 
 const nodemailer = require('nodemailer');
@@ -32,10 +37,11 @@ async function resolveIPv4(host) {
     if (addresses && addresses.length > 0) {
       return addresses[0];
     }
+    throw new Error(`No A records found for ${host}`);
   } catch (err) {
-    console.warn(`DNS resolve4 failed for ${host}:`, err.message);
+    console.error(`DNS resolve4 failed for ${host}:`, err.message);
+    throw err;
   }
-  return host;
 }
 
 async function createTransporter() {
@@ -47,6 +53,7 @@ async function createTransporter() {
     host: targetHost,
     port,
     secure: isSecure,
+    family: 4,
     requireTLS: !isSecure,
     auth: {
       user: normalizedSmtpUser,
