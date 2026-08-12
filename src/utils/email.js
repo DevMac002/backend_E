@@ -6,7 +6,7 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 const nodemailer = require('nodemailer');
 
 function getSmtpCredentials() {
-  const smtpUser = (process.env.SMTP_USER || '').trim();
+  const smtpUser = (process.env.SMTP_USER || process.env.SMTP_FROM || '').trim();
   const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
   const normalizedSmtpUser = smtpUser.includes('@')
     ? smtpUser
