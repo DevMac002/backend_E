@@ -1,17 +1,24 @@
 const nodemailer = require('nodemailer');
 
-const smtpUser = process.env.SMTP_USER || '';
-const normalizedSmtpUser = smtpUser.includes('@') ? smtpUser : `${smtpUser}@gmail.com`;
+const smtpUser = (process.env.SMTP_USER || '').trim();
 const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+
+const normalizedSmtpUser = smtpUser.includes('@')
+  ? smtpUser
+  : smtpUser
+    ? `${smtpUser}@gmail.com`
+    : '';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT || 587),
-  secure: process.env.SMTP_SECURE === 'true',
+  secure: false,
+  requireTLS: true,
   auth: {
     user: normalizedSmtpUser,
     pass: smtpPass,
   },
+  family: 4,
 });
 
 function escapeHtml(value = '') {
