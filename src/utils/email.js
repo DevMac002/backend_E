@@ -1,3 +1,8 @@
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const nodemailer = require('nodemailer');
 
 const smtpUser = (process.env.SMTP_USER || '').trim();
@@ -9,11 +14,14 @@ const normalizedSmtpUser = smtpUser.includes('@')
     ? `${smtpUser}@gmail.com`
     : '';
 
+const port = Number(process.env.SMTP_PORT || 587);
+const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: false,
-  requireTLS: true,
+  port,
+  secure: isSecure,
+  requireTLS: !isSecure,
   auth: {
     user: normalizedSmtpUser,
     pass: smtpPass,
