@@ -40,21 +40,7 @@ async function resolveIPv4(host) {
 
 async function createTransporter() {
   const { smtpPass, normalizedSmtpUser, port, isSecure } = getSmtpCredentials();
-  const originalHost = (process.env.SMTP_HOST || 'smtp.gmail.com').toLowerCase().trim();
-
-  if (originalHost.includes('gmail')) {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: normalizedSmtpUser,
-        pass: smtpPass,
-      },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 20000,
-    });
-  }
-
+  const originalHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const targetHost = await resolveIPv4(originalHost);
 
   return nodemailer.createTransport({
