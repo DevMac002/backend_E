@@ -200,7 +200,7 @@ async function sendPasswordChangedEmail(user) {
 
 module.exports = {
   buildEmailTemplate,
-  sendMail,
+  sendMail, 
   sendWelcomeEmail,
   sendVerificationCodeEmail,
   sendAccountVerifiedEmail,
