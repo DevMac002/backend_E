@@ -1,10 +1,50 @@
+const express = require('express');
 const request = require('supertest');
-const { app } = require('../server');
 
-describe('Auth endpoints', () => {
-  it('returns health status', async () => {
-    const response = await request(app).get('/health');
+jest.mock('../src/middlewares/auth.middleware', () => {
+  return (req, _res, next) => {
+    req.user = { id: 1, username: 'alice', status: 'user', role: 'peuple' };
+    next();
+  };
+});
+
+jest.mock('../src/middlewares/status.middleware', () => ({
+  requireNotBanned: (req, res, next) => next(),
+}));
+
+jest.mock('../src/controllers/user.controller', () => ({
+  listUsers: (_req, res) => res.status(200).json({ data: [{ id: 1, username: 'alice' }] }),
+  getMe: (_req, res) => res.status(200).json({ id: 1 }),
+  updateMe: (_req, res) => res.status(200).json({ ok: true }),
+  changeEmail: (_req, res) => res.status(200).json({ ok: true }),
+  listMyDevices: (_req, res) => res.status(200).json([]),
+  revokeMyDevice: (_req, res) => res.status(200).json({ ok: true }),
+  listUserDevices: (_req, res) => res.status(200).json([]),
+  getUserById: (_req, res) => res.status(200).json({ id: 1 }),
+  uploadAvatar: (_req, res) => res.status(200).json({ ok: true }),
+  deleteMe: (_req, res) => res.status(200).json({ ok: true }),
+  updateUserRole: (_req, res) => res.status(200).json({ ok: true }),
+  updateUserStatus: (_req, res) => res.status(200).json({ ok: true }),
+  banUser: (_req, res) => res.status(200).json({ ok: true }),
+  temporaryBlockUser: (_req, res) => res.status(200).json({ ok: true }),
+  updateUserRestrictions: (_req, res) => res.status(200).json({ ok: true }),
+  rewardUser: (_req, res) => res.status(200).json({ ok: true }),
+  adminDeleteUser: (_req, res) => res.status(200).json({ ok: true }),
+  getUserRewards: (_req, res) => res.status(200).json([]),
+  getLeaderboard: (_req, res) => res.status(200).json([]),
+  getRoleLogs: (_req, res) => res.status(200).json([]),
+}));
+
+const userRoutes = require('../src/routes/user.routes');
+
+describe('User listing', () => {
+  it('allows any authenticated user to access the user list', async () => {
+    const app = express();
+    app.use('/users', userRoutes);
+
+    const response = await request(app).get('/users');
+
     expect(response.status).toBe(200);
-    expect(response.body.status).toBe('ok');
+    expect(response.body.data).toEqual([{ id: 1, username: 'alice' }]);
   });
 });

@@ -16,7 +16,7 @@ router.get('/me/devices', authMiddleware, requireNotBanned, controller.listMyDev
 router.delete('/me/devices/:sessionId', authMiddleware, requireNotBanned, controller.revokeMyDevice);
 router.get('/leaderboard/foi', authMiddleware, requireNotBanned, controller.getLeaderboard);
 router.get('/logs/roles', authMiddleware, requireNotBanned, requireRole('superadmin'), controller.getRoleLogs);
-router.get('/', authMiddleware, requireNotBanned, requireRole('admin', 'superadmin'), controller.listUsers);
+router.get('/', authMiddleware, requireNotBanned, controller.listUsers);
 router.get('/:id/devices', authMiddleware, requireNotBanned, requireRole('admin', 'superadmin'), controller.listUserDevices);
 router.get('/:id', authMiddleware, requireNotBanned, controller.getUserById);
 router.get('/:id/rewards', authMiddleware, requireNotBanned, controller.getUserRewards);
