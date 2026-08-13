@@ -4,7 +4,7 @@ const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime'
 async function listConversations(req, res) {
   const conversations = await Message.findAll({
     where: { [Op.or]: [{ sender_id: req.user.id }, { receiver_id: req.user.id }] },
-    include: [{ model: User, as: 'receiver', attributes: ['id', 'username', 'avatar_path'] }, { model: Group, attributes: ['id', 'nom'] }],
+    include: [{ model: User, as: 'receiver', attributes: ['id', 'username', 'avatar_path'] }, { model: Group, attributes: ['id', 'name'] }],
     order: [['created_at', 'DESC']],
   });
   res.json(conversations);
