@@ -21,16 +21,25 @@ const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, stand
 
 const passwordRule = Joi.string().min(8).max(72).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/);
 
+// Client IDs allowed as the token audience: the Web backend client plus every
+// native (iOS/Android) client that can produce a Google ID token for this app.
+// Configure as a comma-separated list in Render, e.g.:
+// GOOGLE_CLIENT_IDS=xxxx-web.apps.googleusercontent.com,xxxx-ios.apps.googleusercontent.com,xxxx-android.apps.googleusercontent.com
+const ALLOWED_GOOGLE_AUDIENCES = String(
+    process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID || ''
+)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 async function verifyGoogleCredential(credential) {
     if (!credential) {
         throw new Error('Identifiant Google manquant');
     }
 
-    const clientId = String(process.env.GOOGLE_CLIENT_ID || '').trim();
-
-    if (!clientId) {
+    if (ALLOWED_GOOGLE_AUDIENCES.length === 0) {
         throw new Error(
-            'GOOGLE_CLIENT_ID est manquant dans les variables d’environnement'
+            'GOOGLE_CLIENT_IDS (ou GOOGLE_CLIENT_ID) est manquant dans les variables d’environnement'
         );
     }
 
@@ -64,11 +73,12 @@ async function verifyGoogleCredential(credential) {
         throw new Error('Émetteur Google invalide');
     }
 
-    // Vérification de l'audience
-    if (payload.aud !== clientId) {
+    // Vérification de l'audience : accepte le client Web ainsi que les
+    // clients natifs (iOS/Android) déclarés dans GOOGLE_CLIENT_IDS.
+    if (!ALLOWED_GOOGLE_AUDIENCES.includes(payload.aud)) {
         console.error('[Google] Audience incorrecte:', {
             received: payload.aud,
-            expected: clientId,
+            expected: ALLOWED_GOOGLE_AUDIENCES,
         });
 
         throw new Error('Audience Google invalide');
@@ -155,7 +165,7 @@ router.post('/register', registerLimiter, async (req, res) => {
                         message: 'Ce nom d’utilisateur est déjà pris'
                     });
                 }
-                
+
                 if (existingByEmail.verification_attempts >= 5) {
                     return res.status(429).json({
                         message: 'Trop de tentatives. Veuillez patienter ou demander un nouveau code.'
