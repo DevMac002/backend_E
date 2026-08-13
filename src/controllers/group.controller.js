@@ -46,9 +46,6 @@ async function getGroup(req, res) {
 }
 
 async function createGroup(req, res) {
-  if (req.body.type === 'cardinal' && !['admin', 'superadmin'].includes(req.user.status)) {
-    return res.status(403).json({ message: 'Seuls les admins peuvent créer des groupes cardinaux' });
-  }
   const group = await Group.create({ name: req.body.name, description: req.body.description, created_by: req.user.id, type: req.body.type || 'discussion' });
   await GroupMember.create({ group_id: group.id, user_id: req.user.id, role_in_group: 'moderateur' });
   res.status(201).json(group);
