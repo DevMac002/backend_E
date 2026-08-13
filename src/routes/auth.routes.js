@@ -61,16 +61,63 @@ router.post('/register', registerLimiter, async (req, res) => {
             where: { email: value.email }
         });
 
-        if (existingByEmail) {
-            console.log('Email already exists');
-            return res.status(409).json({
-                message: 'Cet email est déjà utilisé par un autre compte'
-            });
-        }
-
         const existingByUsername = await User.findOne({
             where: { username: value.username }
         });
+
+        if (existingByEmail) {
+            if (existingByEmail.is_verified) {
+                console.log('Email already exists and verified');
+                return res.status(409).json({
+                    message: 'Cet email est déjà utilisé par un autre compte'
+                });
+            } else {
+                if (existingByUsername && existingByUsername.id !== existingByEmail.id) {
+                    console.log('Username already exists');
+                    return res.status(409).json({
+                        message: 'Ce nom d’utilisateur est déjà pris'
+                    });
+                }
+                
+                if (existingByEmail.verification_attempts >= 5) {
+                    return res.status(429).json({
+                        message: 'Trop de tentatives. Veuillez patienter ou demander un nouveau code.'
+                    });
+                }
+
+                console.log('User not verified, updating and resending code...');
+                const password_hash = await bcrypt.hash(value.password, 10);
+                const otpCode = generateOtpCode();
+
+                await existingByEmail.update({
+                    username: value.username,
+                    password_hash,
+                    device: value.device,
+                    verification_code: otpCode,
+                    verification_code_expires_at: getOtpExpiration(10),
+                    verification_attempts: existingByEmail.verification_attempts + 1,
+                });
+
+                try {
+                    console.log('Sending verification email...');
+                    await sendVerificationCodeEmail(existingByEmail.email, otpCode);
+                    console.log('Verification email sent');
+                } catch (emailError) {
+                    console.error('EMAIL ERROR:', emailError);
+                }
+
+                return res.status(201).json({
+                    success: true,
+                    message: 'Inscription mise à jour. Vérifiez votre email avec le nouveau code envoyé.',
+                    user: {
+                        id: existingByEmail.id,
+                        username: existingByEmail.username,
+                        email: existingByEmail.email,
+                        is_verified: existingByEmail.is_verified,
+                    },
+                });
+            }
+        }
 
         if (existingByUsername) {
             console.log('Username already exists');
@@ -99,12 +146,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
         try {
             console.log('Sending verification email...');
-
-            await sendVerificationCodeEmail(
-                user.email,
-                otpCode
-            );
-
+            await sendVerificationCodeEmail(user.email, otpCode);
             console.log('Verification email sent');
         } catch (emailError) {
             console.error('EMAIL ERROR:', emailError);
@@ -114,8 +156,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message:
-                'Inscription effectuée. Vérifiez votre email avec le code envoyé.',
+            message: 'Inscription effectuée. Vérifiez votre email avec le code envoyé.',
             user: {
                 id: user.id,
                 username: user.username,
