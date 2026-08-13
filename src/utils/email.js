@@ -1,73 +1,3 @@
-const dns = require('dns');
-const net = require('net');
-
-if (typeof dns.setDefaultResultOrder === 'function') {
-  dns.setDefaultResultOrder('ipv4first');
-}
-if (typeof net.setDefaultAutoSelectFamily === 'function') {
-  net.setDefaultAutoSelectFamily(false);
-}
-
-const nodemailer = require('nodemailer');
-
-const dnsPromises = dns.promises;
-
-function getSmtpCredentials() {
-  const smtpUser = (process.env.SMTP_USER || process.env.SMTP_FROM || '').trim();
-  const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
-  const normalizedSmtpUser = smtpUser.includes('@')
-    ? smtpUser
-    : smtpUser
-      ? `${smtpUser}@gmail.com`
-      : '';
-  const port = Number(process.env.SMTP_PORT || 465);
-  const isSecure = process.env.SMTP_SECURE !== undefined
-    ? process.env.SMTP_SECURE === 'true'
-    : port === 465;
-
-  return { smtpUser, smtpPass, normalizedSmtpUser, port, isSecure };
-}
-
-async function resolveIPv4(host) {
-  if (!host || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
-    return host;
-  }
-  try {
-    const addresses = await dnsPromises.resolve4(host);
-    if (addresses && addresses.length > 0) {
-      return addresses[0];
-    }
-    throw new Error(`No A records found for ${host}`);
-  } catch (err) {
-    console.error(`DNS resolve4 failed for ${host}:`, err.message);
-    throw err;
-  }
-}
-
-async function createTransporter() {
-  const { smtpPass, normalizedSmtpUser, port, isSecure } = getSmtpCredentials();
-  const originalHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
-  const targetHost = await resolveIPv4(originalHost);
-
-  return nodemailer.createTransport({
-    host: targetHost,
-    port,
-    secure: isSecure,
-    family: 4,
-    requireTLS: !isSecure,
-    auth: {
-      user: normalizedSmtpUser,
-      pass: smtpPass,
-    },
-    tls: {
-      servername: originalHost,
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
-  });
-}
-
 function escapeHtml(value = '') {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -124,76 +54,68 @@ function buildEmailTemplate({
     </div>`;
 }
 
-async function sendMailViaResend({ to, subject, html, text }) {
-  const apiKey = (process.env.RESEND_API_KEY || '').trim();
-  const rawFrom = (process.env.RESEND_FROM || 'Epika Social <onboarding@resend.dev>').trim();
-  const from = rawFrom.includes('@') ? rawFrom : `Epika Social <${rawFrom}>`;
+function parseFromAddress(raw, fallbackName = 'Epika Social') {
+  // Accepts "Name <email@domain.com>" or plain "email@domain.com"
+  const match = raw.match(/^(.*)<(.+)>$/);
+  if (match) {
+    const name = match[1].trim().replace(/^["']|["']$/g, '') || fallbackName;
+    const email = match[2].trim();
+    return { name, email };
+  }
+  return { name: fallbackName, email: raw.trim() };
+}
+
+async function sendMailViaBrevo({ to, subject, html, text }) {
+  const apiKey = (process.env.BREVO_API_KEY || '').trim();
+  const rawFrom = (process.env.BREVO_FROM || '').trim();
 
   if (!apiKey) {
-    return { ok: false, reason: 'missing_resend_api_key' };
+    return { ok: false, reason: 'missing_brevo_api_key' };
+  }
+  if (!rawFrom) {
+    return { ok: false, reason: 'missing_brevo_from' };
   }
 
+  const sender = parseFromAddress(rawFrom);
+  const recipients = (Array.isArray(to) ? to : [to]).map((address) => ({ email: address }));
+
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'api-key': apiKey,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
-        from,
-        to: Array.isArray(to) ? to : [to],
+        sender,
+        to: recipients,
         subject,
-        html,
-        text,
+        htmlContent: html,
+        textContent: text,
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      console.error('Resend API Error Response:', data);
-      return { ok: false, reason: data.message || 'resend_api_error' };
+      console.error('Brevo API Error Response:', data);
+      return { ok: false, reason: data.message || `brevo_api_error_${response.status}` };
     }
 
-    return { ok: true, messageId: data.id };
+    return { ok: true, messageId: data.messageId };
   } catch (error) {
-    console.error('Resend HTTP Request Failed:', error);
+    console.error('Brevo HTTP Request Failed:', error);
     return { ok: false, reason: error.message };
   }
 }
 
 async function sendMail({ to, subject, html, text }) {
-  const resendResult = await sendMailViaResend({ to, subject, html, text });
-  if (resendResult.ok) {
-    return resendResult;
+  const brevoResult = await sendMailViaBrevo({ to, subject, html, text });
+  if (!brevoResult.ok) {
+    console.error('Brevo API send failed:', brevoResult.reason);
   }
-
-  console.warn('Resend REST API send failed or unavailable, trying SMTP fallback...', resendResult.reason);
-
-  const { smtpPass, normalizedSmtpUser } = getSmtpCredentials();
-
-  if (!normalizedSmtpUser || !smtpPass) {
-    console.warn('SMTP credentials not configured. Email not sent.');
-    return { ok: false, reason: resendResult.reason || 'missing_credentials' };
-  }
-
-  try {
-    const transporter = await createTransporter();
-
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || normalizedSmtpUser,
-      to,
-      subject,
-      html,
-      text,
-    });
-
-    return { ok: true, messageId: info.messageId };
-  } catch (smtpError) {
-    console.error('SMTP Fallback Error:', smtpError);
-    return { ok: false, reason: smtpError.message };
-  }
+  return brevoResult;
 }
 
 async function sendWelcomeEmail(user) {
