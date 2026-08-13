@@ -26,19 +26,60 @@ async function verifyGoogleCredential(credential) {
         throw new Error('Identifiant Google manquant');
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = String(process.env.GOOGLE_CLIENT_ID || '').trim();
+
     if (!clientId) {
-        throw new Error('GOOGLE_CLIENT_ID est manquant dans les variables d’environnement');
+        throw new Error(
+            'GOOGLE_CLIENT_ID est manquant dans les variables d’environnement'
+        );
     }
 
-    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    const response = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
+    );
+
     if (!response.ok) {
+        const errorText = await response.text();
+
+        console.error('[Google] tokeninfo rejected:', errorText);
+
         throw new Error('Token Google invalide');
     }
 
     const payload = await response.json();
-    if (!payload?.email || payload.aud !== clientId) {
-        throw new Error('Token Google invalide');
+
+    console.log('[Google] Token information:', {
+        aud: payload.aud,
+        azp: payload.azp,
+        email: payload.email,
+        sub: payload.sub,
+        iss: payload.iss,
+    });
+
+    // Vérification de l'émetteur
+    if (
+        payload.iss !== 'https://accounts.google.com' &&
+        payload.iss !== 'accounts.google.com'
+    ) {
+        throw new Error('Émetteur Google invalide');
+    }
+
+    // Vérification de l'audience
+    if (payload.aud !== clientId) {
+        console.error('[Google] Audience incorrecte:', {
+            received: payload.aud,
+            expected: clientId,
+        });
+
+        throw new Error('Audience Google invalide');
+    }
+
+    if (!payload.email) {
+        throw new Error('Email Google manquant');
+    }
+
+    if (!payload.sub) {
+        throw new Error('Identifiant Google manquant');
     }
 
     return payload;
