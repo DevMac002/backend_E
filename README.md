@@ -58,7 +58,7 @@ npm install
 cp .env.example .env
 ```
 
-Éditer le fichier `.env` avec vos valeurs MariaDB, JWT, SMTP et Pusher :
+Éditer le fichier `.env` avec vos valeurs MariaDB, JWT, Brevo (emails) et Pusher :
 
 ```env
 PORT=3000
@@ -82,12 +82,8 @@ JWT_REFRESH_SECRET=change_me_refresh
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=you@example.com
-SMTP_PASS=your_smtp_password
-SMTP_FROM=you@example.com
+BREVO_API_KEY=votre_cle_api_brevo
+BREVO_FROM=Epika Social <you@example.com>
 
 PUSHER_ENABLED=false
 PUSHER_APP_ID=your_pusher_app_id
@@ -521,12 +517,8 @@ Si vous passez à Pusher, le frontend Flutter doit écouter les canaux Pusher au
 - `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_EXPIRES_IN`
 - `JWT_REFRESH_EXPIRES_IN`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_SECURE`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_FROM`
+- `BREVO_API_KEY`
+- `BREVO_FROM`
 - `PUSHER_ENABLED`
 - `PUSHER_APP_ID`
 - `PUSHER_KEY`
@@ -580,3 +572,31 @@ Les variables de collection suivantes sont prévues :
 ## 14. Notes
 
 Ce backend est pensé pour évoluer facilement vers un front-end mobile/web. Les couches sont séparées en routes, contrôleurs, services, modèles et middlewares pour faciliter la maintenance.
+
+## 15. Supprimer des valeurs en base de données
+
+  SET FOREIGN_KEY_CHECKS = 0;
+
+  TRUNCATE TABLE audit_logs;
+  TRUNCATE TABLE comments;
+  TRUNCATE TABLE group_members;
+  TRUNCATE TABLE groups;
+  TRUNCATE TABLE likes;
+  TRUNCATE TABLE media;
+  TRUNCATE TABLE messages;
+  TRUNCATE TABLE moderation_logs;
+  TRUNCATE TABLE notifications;
+  TRUNCATE TABLE poll_votes;
+  TRUNCATE TABLE posts;
+  TRUNCATE TABLE quiz_answers;
+  TRUNCATE TABLE rewards_history;
+  TRUNCATE TABLE role_change_logs;
+  TRUNCATE TABLE stories;
+  TRUNCATE TABLE story_views;
+  TRUNCATE TABLE user_sessions;
+  TRUNCATE TABLE users;
+
+  SET FOREIGN_KEY_CHECKS = 1;
+
+
+https://gemini.google.com/app/b2b32dbcd52b3e4d?hl=en-BF&utm_campaign=microsite_gemini_video_generation_page&icid=microsite_gemini_video_generation_page&utm_source=gemini&utm_medium=web&_gl=1*m4h7c5*_gcl_au*MjEwNjczOTA4Ni4xNzg2MzY1MzUx
