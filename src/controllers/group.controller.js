@@ -22,8 +22,19 @@ async function listGroups(req, res) {
   const where = {};
   if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
   const [groups, total] = await Promise.all([
-    Group.findAll({ where, include: [{ model: User, attributes: ['id', 'username'] }], limit, offset }),
-    Group.count({ where }),
+    Group.findAll({
+      where,
+      include: [
+        { model: User, attributes: ['id', 'username'] },
+        { model: GroupMember, where: { user_id: req.user.id }, required: true, attributes: [] }
+      ],
+      limit,
+      offset
+    }),
+    Group.count({
+      where,
+      include: [{ model: GroupMember, where: { user_id: req.user.id }, required: true }]
+    }),
   ]);
   res.json(buildPaginatedResponse(groups, total, page, limit));
 }
