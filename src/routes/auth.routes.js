@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
 const { User, UserSession, RoleChangeLog } = require('../models');
@@ -19,6 +20,41 @@ const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeader
 const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
 
 const passwordRule = Joi.string().min(8).max(72).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/);
+
+async function verifyGoogleCredential(credential) {
+    if (!credential) {
+        throw new Error('Identifiant Google manquant');
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+        throw new Error('GOOGLE_CLIENT_ID est manquant dans les variables d’environnement');
+    }
+
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    if (!response.ok) {
+        throw new Error('Token Google invalide');
+    }
+
+    const payload = await response.json();
+    if (!payload?.email || payload.aud !== clientId) {
+        throw new Error('Token Google invalide');
+    }
+
+    return payload;
+}
+
+function buildUniqueUsername(baseUsername) {
+    const normalized = String(baseUsername || 'user')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 30);
+
+    return normalized || 'user';
+}
 
 const registerSchema = Joi.object({
     username: Joi.string().min(3).max(30).pattern(/^[a-zA-Z0-9_]+$/).required(),
@@ -199,6 +235,84 @@ router.post('/login', loginLimiter, async (req, res) => {
     } catch (e) {
         console.error('[auth:login]', e.message);
         res.status(500).json({ message: 'Erreur serveur lors de la connexion', error: e.message });
+    }
+});
+
+router.post('/google', async (req, res) => {
+    try {
+        const { credential, device } = req.body || {};
+        if (!device || String(device).trim() === '') {
+            return res.status(400).json({ message: 'Le champ device est obligatoire' });
+        }
+
+        const payload = await verifyGoogleCredential(credential);
+        const email = String(payload.email).trim().toLowerCase();
+        const normalizedDevice = String(device).trim();
+
+        let user = await User.findOne({ where: { google_sub: payload.sub } });
+        if (!user) {
+            user = await User.findOne({ where: { email } });
+        }
+
+        if (!user) {
+            const baseUsername = buildUniqueUsername(payload.name || payload.given_name || email.split('@')[0]);
+            let username = baseUsername;
+            let index = 1;
+
+            while (await User.findOne({ where: { username } })) {
+                username = `${baseUsername}${index}`;
+                index += 1;
+            }
+
+            const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+            user = await User.create({
+                username,
+                email,
+                password_hash: passwordHash,
+                auth_provider: 'google',
+                google_sub: payload.sub,
+                device: normalizedDevice,
+                is_verified: true,
+                status: 'user',
+            });
+        } else {
+            await user.update({
+                email,
+                auth_provider: 'google',
+                google_sub: payload.sub,
+                is_verified: true,
+                device: normalizedDevice,
+            });
+        }
+
+        if (user.is_banned) {
+            return res.status(403).json({ message: 'Votre compte a été banni. Contactez le support pour plus d’informations.' });
+        }
+        if (isTemporaryBlockActive(user)) {
+            return res.status(403).json({ message: `Votre compte est temporairement bloqué jusqu’au ${new Date(user.blocked_until).toLocaleDateString('fr-FR')}`, blocked_until: user.blocked_until, reason: user.block_reason });
+        }
+
+        const session = await createSession(user, req, normalizedDevice);
+        const accessToken = generateAccessToken(user, session);
+        const refreshToken = generateRefreshToken(user, session);
+
+        res.json({
+            accessToken,
+            refreshToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                status: user.status,
+                is_verified: user.is_verified,
+                device: user.device,
+                auth_provider: user.auth_provider,
+            },
+        });
+    } catch (e) {
+        console.error('[auth:google]', e.message);
+        res.status(401).json({ message: 'Connexion Google invalide ou refusée', error: e.message });
     }
 });
 

@@ -28,6 +28,14 @@ export function useAuth() {
     return userData;
   };
 
+  const loginWithGoogle = async (credential, device) => {
+    const response = await api.post('/auth/google', { credential, device });
+    const { accessToken, user: userData } = response.data;
+    setAccessToken(accessToken);
+    setUser(userData);
+    return userData;
+  };
+
   const logout = async () => {
     try {
       await api.post('/auth/logout');
@@ -37,5 +45,5 @@ export function useAuth() {
     }
   };
 
-  return { user, loading, login, logout };
+  return { user, loading, login, loginWithGoogle, logout };
 }

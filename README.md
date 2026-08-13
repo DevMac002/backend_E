@@ -145,6 +145,36 @@ Réponse attendue :
 
 ## 8. Authentification
 
+### Variables d’environnement
+Ajouter dans le `.env` du backend :
+```env
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+JWT_SECRET=change-me
+JWT_REFRESH_SECRET=change-me-too
+```
+
+Ajouter dans le `.env` du front Vite :
+```env
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+VITE_API_URL=http://localhost:3000
+```
+
+### Connexion Google Sign-In
+Le projet supporte désormais la connexion avec Google Identity Services.
+
+Le front récupère le `credential` Google et l’envoie à :
+```http
+POST /auth/google
+Content-Type: application/json
+
+{
+  "credential": "<google_id_token>",
+  "device": "web"
+}
+```
+
+La route vérifie le JWT côté serveur avec `GOOGLE_CLIENT_ID` et crée ou connecte l’utilisateur selon son email et son identifiant Google.
+
 ### Enregistrer un utilisateur
 ```http
 POST /auth/register

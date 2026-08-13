@@ -1,46 +1,90 @@
-# Epika Social — Backend API
+# Epika Social — Guide API pour Flutter
 
-Base URL de l'API : `http://localhost:3000`
+Base URL de l'API :
 
-Toutes les routes protégées requièrent l'en-tête :
+```text
+http://localhost:3000
+```
+
+Toujours envoyer le token sur les routes protégées :
 
 ```http
 Authorization: Bearer <accessToken>
 ```
 
-## Points clés
+## 1. Conventions générales
 
-- Authentification JWT via `/auth/login`
-- Envois de fichiers avec `multipart/form-data`
-- Routes principales : `/auth`, `/users`, `/posts`, `/stories`, `/groups`, `/messages`, `/notifications`
+- Les routes publiques ou semi-protégées utilisent JSON pour les payloads.
+- Les routes avec fichiers utilisent `multipart/form-data`.
+- Les réponses paginées suivent en général ce format :
 
-## Auth
-
-### Vérifier que le serveur est actif
-
-```bash
-curl http://localhost:3000/health
-```
-
-**Réponse attendue :**
 ```json
 {
-  "status": "ok",
-  "timestamp": "2026-08-13T12:00:00.000Z"
+  "data": [],
+  "meta": {
+    "total": 0,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 0
+  }
 }
 ```
 
-### Inscription
+- Les erreurs renvoient généralement :
 
-L'inscription envoie automatiquement un code OTP par email. Si le compte existe déjà mais n'est pas vérifié, relancer cette même requête renverra un nouveau code (limite de 5 tentatives).
-
-```bash
-curl -X POST http://localhost:3000/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"newuser","email":"user@example.com","password":"Password123\\!","device":"flutter"}'
+```json
+{
+  "message": "Description de l'erreur"
+}
 ```
 
-**Réponse attendue (201 Created) :**
+- Les champs de date sont renvoyés au format ISO 8601 :
+
+```text
+2026-08-13T12:00:00.000Z
+```
+
+---
+
+## 2. Authentification
+
+### 2.1. Vérifier le serveur
+
+```http
+GET /health
+```
+
+Réponse attendue :
+
+```json
+{
+  "status": "ok",
+  "service": "epika-social"
+}
+```
+
+### 2.2. Inscription
+
+Endpoint :
+
+```http
+POST /auth/register
+Content-Type: application/json
+```
+
+Entrée :
+
+```json
+{
+  "username": "newuser",
+  "email": "user@example.com",
+  "password": "Password123!",
+  "device": "flutter"
+}
+```
+
+Sortie attendue :
+
 ```json
 {
   "success": true,
@@ -54,17 +98,51 @@ curl -X POST http://localhost:3000/auth/register \
 }
 ```
 
-### Vérifier l'email (OTP)
+Notes Flutter :
+- Enregistrer le `username`, `email`, `password` dans l’état local si nécessaire.
+- Le compte n'est pas immédiatement actif tant qu'il n'a pas validé le code OTP.
 
-Valider le compte et obtenir directement les tokens d'accès :
+### 2.3. Renvoyer le code de vérification
 
-```bash
-curl -X POST http://localhost:3000/auth/verify-email \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com","code":"123456"}'
+```http
+POST /auth/send-verification-code
+Content-Type: application/json
 ```
 
-**Réponse attendue (200 OK) :**
+Entrée :
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+Sortie :
+
+```json
+{
+  "message": "Code envoyé"
+}
+```
+
+### 2.4. Vérifier l’email avec OTP
+
+```http
+POST /auth/verify-email
+Content-Type: application/json
+```
+
+Entrée :
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+Sortie :
+
 ```json
 {
   "message": "Email vérifié avec succès. Bienvenue !",
@@ -81,38 +159,31 @@ curl -X POST http://localhost:3000/auth/verify-email \
 }
 ```
 
-### Renvoyer le code de vérification (manuel)
+### 2.5. Connexion email / mot de passe
 
-Si l'utilisateur a besoin d'un nouveau code sans repasser par `/register` :
-
-```bash
-curl -X POST http://localhost:3000/auth/send-verification-code \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com"}'
+```http
+POST /auth/login
+Content-Type: application/json
 ```
 
-**Réponse attendue (200 OK) :**
+Entrée :
+
 ```json
 {
-  "message": "Code envoyé"
+  "email": "user@example.com",
+  "password": "Password123!",
+  "device": "flutter"
 }
 ```
 
-### Connexion
+Sortie :
 
-```bash
-curl -X POST http://localhost:3000/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com","password":"Password123\\!","device":"flutter"}'
-```
-
-**Réponse attendue (200 OK) :**
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR...",
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR...",
-  "user": { 
-    "id": 1, 
+  "user": {
+    "id": 1,
     "username": "newuser",
     "email": "user@example.com",
     "role": "peuple",
@@ -123,46 +194,100 @@ curl -X POST http://localhost:3000/auth/login \
 }
 ```
 
-### Rafraîchir le token
+### 2.6. Connexion Google Sign-In
 
-```bash
-curl -X POST http://localhost:3000/auth/refresh \
-  -H 'Content-Type: application/json' \
-  -d '{"refreshToken":"<refreshToken>"}'
+```http
+POST /auth/google
+Content-Type: application/json
 ```
 
-**Réponse attendue (200 OK) :**
+Entrée :
+
+```json
+{
+  "credential": "<google_id_token>",
+  "device": "flutter"
+}
+```
+
+Sortie :
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR...",
+  "user": {
+    "id": 1,
+    "username": "john",
+    "email": "john@gmail.com",
+    "role": "peuple",
+    "status": "user",
+    "is_verified": true,
+    "device": "flutter",
+    "auth_provider": "google"
+  }
+}
+```
+
+### 2.7. Rafraîchir le token
+
+```http
+POST /auth/refresh
+Content-Type: application/json
+```
+
+Entrée :
+
+```json
+{
+  "refreshToken": "<refreshToken>"
+}
+```
+
+Sortie :
+
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR..."
 }
 ```
 
-### Déconnexion
+### 2.8. Déconnexion
 
-```bash
-curl -X POST http://localhost:3000/auth/logout \
-  -H 'Content-Type: application/json' \
-  -d '{"refreshToken":"<refreshToken>"}'
+```http
+POST /auth/logout
+Content-Type: application/json
 ```
 
-**Réponse attendue (200 OK) :**
+Entrée :
+
+```json
+{
+  "refreshToken": "<refreshToken>"
+}
+```
+
+Sortie :
+
 ```json
 {
   "message": "Déconnecté"
 }
 ```
 
-## Utilisateur connecté
+---
 
-### Récupérer le profil
+## 3. Utilisateur
 
-```bash
-curl http://localhost:3000/users/me \
-  -H 'Authorization: Bearer <accessToken>'
+### 3.1. Récupérer le profil courant
+
+```http
+GET /users/me
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie :
+
 ```json
 {
   "id": 1,
@@ -173,41 +298,107 @@ curl http://localhost:3000/users/me \
   "role": "peuple",
   "status": "user",
   "foi_points": 0,
-  "is_verified": true
+  "is_verified": true,
+  "device": "flutter"
 }
 ```
 
-### Mettre à jour le profil
+### 3.2. Mettre à jour le profil
 
-```bash
-curl -X PUT http://localhost:3000/users/me \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"nouveau","bio":"Bio Flutter"}'
+```http
+PUT /users/me
+Authorization: Bearer <accessToken>
+Content-Type: application/json
 ```
 
-**Réponse attendue (200 OK) :**
+Entrée :
+
 ```json
 {
-  "message": "Profil mis à jour",
-  "user": {
-    "id": 1,
-    "username": "nouveau",
-    "bio": "Bio Flutter"
+  "username": "nouveau",
+  "bio": "Bio Flutter"
+}
+```
+
+Sortie :
+
+```json
+{
+  "id": 1,
+  "username": "nouveau",
+  "email": "user@example.com",
+  "bio": "Bio Flutter",
+  "avatar_path": null,
+  "role": "peuple",
+  "status": "user"
+}
+```
+
+### 3.3. Lister les utilisateurs
+
+```http
+GET /users?page=1&limit=20
+Authorization: Bearer <accessToken>
+```
+
+Sortie :
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "username": "alice",
+      "email": "alice@example.com",
+      "avatar_path": null,
+      "role": "peuple",
+      "status": "user",
+      "foi_points": 0
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1
   }
 }
 ```
 
-## Publications
+### 3.4. Voir un profil public
 
-### Lister le feed
-
-```bash
-curl http://localhost:3000/posts?page=1&limit=20 \
-  -H 'Authorization: Bearer <accessToken>'
+```http
+GET /users/:id
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie type :
+
+```json
+{
+  "id": 2,
+  "username": "bob",
+  "bio": "Amoureux du Seigneur",
+  "avatar_path": null,
+  "role": "peuple",
+  "status": "user",
+  "foi_points": 14
+}
+```
+
+---
+
+## 4. Publications
+
+### 4.1. Lister le feed
+
+```http
+GET /posts?page=1&limit=20
+Authorization: Bearer <accessToken>
+```
+
+Sortie typique :
+
 ```json
 {
   "data": [
@@ -215,7 +406,7 @@ curl http://localhost:3000/posts?page=1&limit=20 \
       "id": 1,
       "content": "Bonjour depuis Flutter",
       "type": "text",
-      "createdAt": "2026-08-13T12:00:00.000Z",
+      "created_at": "2026-08-13T12:00:00.000Z",
       "author": {
         "id": 1,
         "username": "nouveau",
@@ -234,16 +425,25 @@ curl http://localhost:3000/posts?page=1&limit=20 \
 }
 ```
 
-### Créer une publication (post, photo, quiz, etc.)
+### 4.2. Créer un post texte
 
-```bash
-curl -X POST http://localhost:3000/posts \
-  -H 'Authorization: Bearer <accessToken>' \
-  -F 'content=Bonjour depuis Flutter' \
-  -F 'type=text'
+```http
+POST /posts
+Authorization: Bearer <accessToken>
+Content-Type: application/json
 ```
 
-**Réponse attendue (201 Created) :**
+Entrée :
+
+```json
+{
+  "content": "Bonjour depuis Flutter",
+  "type": "text"
+}
+```
+
+Sortie :
+
 ```json
 {
   "message": "Publication créée avec succès",
@@ -252,22 +452,26 @@ curl -X POST http://localhost:3000/posts \
     "content": "Bonjour depuis Flutter",
     "type": "text",
     "user_id": 1,
-    "createdAt": "2026-08-13T12:00:00.000Z"
+    "created_at": "2026-08-13T12:00:00.000Z"
   }
 }
 ```
 
-Avec fichier média :
+### 4.3. Créer un post avec fichier
 
-```bash
-curl -X POST http://localhost:3000/posts \
-  -H 'Authorization: Bearer <accessToken>' \
-  -F 'content=Photo from Flutter' \
-  -F 'type=photo' \
-  -F 'file=@/path/to/photo.jpg'
+```http
+POST /posts
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
 ```
 
-**Réponse attendue (201 Created) :**
+FormData :
+- `content`: texte
+- `type`: `photo` ou `video` selon le cas
+- `file`: fichier média
+
+Sortie :
+
 ```json
 {
   "message": "Publication créée avec succès",
@@ -287,14 +491,15 @@ curl -X POST http://localhost:3000/posts \
 }
 ```
 
-### Consulter une publication
+### 4.4. Consulter un post
 
-```bash
-curl http://localhost:3000/posts/1 \
-  -H 'Authorization: Bearer <accessToken>'
+```http
+GET /posts/:id
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie type :
+
 ```json
 {
   "id": 1,
@@ -308,16 +513,37 @@ curl http://localhost:3000/posts/1 \
 }
 ```
 
-### Ajouter un commentaire
+### 4.5. Liker / unlike
 
-```bash
-curl -X POST http://localhost:3000/posts/1/comments \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{"content":"Super post \\!"}'
+- `POST /posts/:id/like`
+- `DELETE /posts/:id/like`
+
+Sortie typique :
+
+```json
+{
+  "message": "Like ajouté"
+}
 ```
 
-**Réponse attendue (201 Created) :**
+### 4.6. Commenter
+
+```http
+POST /posts/:id/comments
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+```
+
+Entrée :
+
+```json
+{
+  "content": "Super post !"
+}
+```
+
+Sortie :
+
 ```json
 {
   "message": "Commentaire ajouté",
@@ -326,21 +552,24 @@ curl -X POST http://localhost:3000/posts/1/comments \
     "content": "Super post !",
     "post_id": 1,
     "user_id": 1,
-    "createdAt": "2026-08-13T12:05:00.000Z"
+    "created_at": "2026-08-13T12:05:00.000Z"
   }
 }
 ```
 
-## Stories
+---
 
-### Lister les stories
+## 5. Stories
 
-```bash
-curl http://localhost:3000/stories?page=1&limit=20 \
-  -H 'Authorization: Bearer <accessToken>'
+### 5.1. Lister les stories
+
+```http
+GET /stories?page=1&limit=20
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie :
+
 ```json
 {
   "data": [
@@ -348,7 +577,7 @@ curl http://localhost:3000/stories?page=1&limit=20 \
       "id": 1,
       "type": "text",
       "content": "Bonne journée !",
-      "createdAt": "2026-08-13T12:00:00.000Z",
+      "created_at": "2026-08-13T12:00:00.000Z",
       "author": {
         "id": 1,
         "username": "nouveau"
@@ -358,21 +587,26 @@ curl http://localhost:3000/stories?page=1&limit=20 \
   "meta": {
     "total": 1,
     "page": 1,
-    "limit": 20
+    "limit": 20,
+    "totalPages": 1
   }
 }
 ```
 
-### Créer une story texte
+### 5.2. Créer une story texte
 
-```bash
-curl -X POST http://localhost:3000/stories \
-  -H 'Authorization: Bearer <accessToken>' \
-  -F 'type=text' \
-  -F 'content=Bonne journée \!'
+```http
+POST /stories
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
 ```
 
-**Réponse attendue (201 Created) :**
+FormData :
+- `type`: `text`
+- `content`: texte
+
+Sortie :
+
 ```json
 {
   "message": "Story créée",
@@ -380,23 +614,26 @@ curl -X POST http://localhost:3000/stories \
     "id": 1,
     "type": "text",
     "content": "Bonne journée !",
-    "user_id": 1,
-    "expires_at": "2026-08-14T12:00:00.000Z"
+    "user_id": 1
   }
 }
 ```
 
-### Créer une story média
+### 5.3. Créer une story avec image
 
-```bash
-curl -X POST http://localhost:3000/stories \
-  -H 'Authorization: Bearer <accessToken>' \
-  -F 'type=image' \
-  -F 'content=Une image depuis Flutter' \
-  -F 'media=@/path/to/image.jpg'
+```http
+POST /stories
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
 ```
 
-**Réponse attendue (201 Created) :**
+FormData :
+- `type`: `image`
+- `content`: texte descriptif
+- `media`: image file
+
+Sortie :
+
 ```json
 {
   "message": "Story créée",
@@ -410,69 +647,34 @@ curl -X POST http://localhost:3000/stories \
 }
 ```
 
-### Consulter une story
+### 5.4. Marquer comme vue
 
-```bash
-curl http://localhost:3000/stories/1 \
-  -H 'Authorization: Bearer <accessToken>'
+```http
+POST /stories/:id/view
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
-```json
-{
-  "id": 1,
-  "type": "text",
-  "content": "Bonne journée !",
-  "author": {
-    "id": 1,
-    "username": "nouveau"
-  }
-}
-```
+Sortie :
 
-### Marquer une story comme vue
-
-```bash
-curl -X POST http://localhost:3000/stories/1/view \
-  -H 'Authorization: Bearer <accessToken>'
-```
-
-**Réponse attendue (200 OK) :**
 ```json
 {
   "message": "Story vue"
 }
 ```
 
-### Voir les viewers d'une story
+---
 
-```bash
-curl http://localhost:3000/stories/1/viewers \
-  -H 'Authorization: Bearer <accessToken>'
+## 6. Groupes
+
+### 6.1. Lister les groupes
+
+```http
+GET /groups?page=1&limit=20
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
-```json
-[
-  {
-    "id": 2,
-    "username": "autre_utilisateur",
-    "avatar_path": null,
-    "viewed_at": "2026-08-13T12:10:00.000Z"
-  }
-]
-```
+Sortie :
 
-## Groupes
-
-### Lister les groupes
-
-```bash
-curl http://localhost:3000/groups?page=1&limit=20 \
-  -H 'Authorization: Bearer <accessToken>'
-```
-
-**Réponse attendue (200 OK) :**
 ```json
 {
   "data": [
@@ -486,21 +688,31 @@ curl http://localhost:3000/groups?page=1&limit=20 \
   "meta": {
     "total": 1,
     "page": 1,
-    "limit": 20
+    "limit": 20,
+    "totalPages": 1
   }
 }
 ```
 
-### Créer un groupe
+### 6.2. Créer un groupe
 
-```bash
-curl -X POST http://localhost:3000/groups \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Mon groupe","description":"Groupe Flutter"}'
+```http
+POST /groups
+Authorization: Bearer <accessToken>
+Content-Type: application/json
 ```
 
-**Réponse attendue (201 Created) :**
+Entrée :
+
+```json
+{
+  "name": "Mon groupe",
+  "description": "Groupe Flutter"
+}
+```
+
+Sortie :
+
 ```json
 {
   "message": "Groupe créé",
@@ -513,18 +725,29 @@ curl -X POST http://localhost:3000/groups \
 }
 ```
 
-## Messagerie
+---
 
-### Envoyer un message privé
+## 7. Messages
 
-```bash
-curl -X POST http://localhost:3000/messages \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'Content-Type: application/json' \
-  -d '{"content":"Salut \\!","receiver_id":2}'
+### 7.1. Envoyer un message privé
+
+```http
+POST /messages
+Authorization: Bearer <accessToken>
+Content-Type: application/json
 ```
 
-**Réponse attendue (201 Created) :**
+Entrée :
+
+```json
+{
+  "content": "Salut !",
+  "receiver_id": 2
+}
+```
+
+Sortie :
+
 ```json
 {
   "message": "Message envoyé",
@@ -533,19 +756,20 @@ curl -X POST http://localhost:3000/messages \
     "content": "Salut !",
     "sender_id": 1,
     "receiver_id": 2,
-    "createdAt": "2026-08-13T12:00:00.000Z"
+    "created_at": "2026-08-13T12:00:00.000Z"
   }
 }
 ```
 
-### Lister les conversations
+### 7.2. Lister les conversations
 
-```bash
-curl http://localhost:3000/messages/conversations \
-  -H 'Authorization: Bearer <accessToken>'
+```http
+GET /messages/conversations
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie :
+
 ```json
 [
   {
@@ -556,23 +780,26 @@ curl http://localhost:3000/messages/conversations \
     "lastMessage": {
       "id": 1,
       "content": "Salut !",
-      "createdAt": "2026-08-13T12:00:00.000Z"
+      "created_at": "2026-08-13T12:00:00.000Z"
     },
     "unreadCount": 0
   }
 ]
 ```
 
-## Notifications
+---
 
-### Lister les notifications
+## 8. Notifications
 
-```bash
-curl http://localhost:3000/notifications \
-  -H 'Authorization: Bearer <accessToken>'
+### 8.1. Lister les notifications
+
+```http
+GET /notifications?page=1&limit=20
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie :
+
 ```json
 {
   "data": [
@@ -581,37 +808,92 @@ curl http://localhost:3000/notifications \
       "type": "NEW_FOLLOWER",
       "content": "Un utilisateur a commencé à vous suivre.",
       "is_read": false,
-      "createdAt": "2026-08-13T12:00:00.000Z"
+      "created_at": "2026-08-13T12:00:00.000Z"
     }
   ],
   "meta": {
     "total": 1,
     "page": 1,
-    "limit": 20
+    "limit": 20,
+    "totalPages": 1
   }
 }
 ```
 
-### Marquer une notification comme lue
+### 8.2. Marquer comme lue
 
-```bash
-curl -X PUT http://localhost:3000/notifications/1/read \
-  -H 'Authorization: Bearer <accessToken>'
+```http
+PUT /notifications/:id/read
+Authorization: Bearer <accessToken>
 ```
 
-**Réponse attendue (200 OK) :**
+Sortie :
+
 ```json
 {
   "message": "Notification marquée comme lue"
 }
 ```
 
-## Exemple Flutter
+---
 
-Pour Flutter, utiliser `http.MultipartRequest` pour les endpoints `POST /posts` et `POST /stories` avec fichiers.
+## 9. Mapping Flutter pratique
 
-- Auth : `POST /auth/login`
-- Créer une publication : `POST /posts` avec `content`, `type`, et `file`
-- Créer une story : `POST /stories` avec `type`, `content`, et `media`
-- Récupérer le feed : `GET /posts`, `GET /stories`
-- Protéger les requêtes avec `Authorization: Bearer <token>`
+### 9.1. Stockage du token
+- Stocker `accessToken` et `refreshToken` dans un secure storage.
+- Ajouter le token sur chaque requête protégée.
+
+### 9.2. Upload de fichiers
+Utiliser `MultipartFile` / `FormData` pour :
+- `/posts`
+- `/stories`
+- `/users/me/avatar`
+
+### 9.3. Réponse paginée
+Quand une route renvoie `data` + `meta`, faire :
+- `items = response.data['data']`
+- `total = response.data['meta']['total']`
+
+### 9.4. Gestion des erreurs
+Toujours lire :
+
+```json
+{
+  "message": "..."
+}
+```
+
+et afficher un message utilisateur simple.
+
+### 9.5. Exemple pseudo Flutter
+
+```dart
+final response = await http.post(
+  Uri.parse('http://localhost:3000/auth/login'),
+  headers: {'Content-Type': 'application/json'},
+  body: jsonEncode({
+    'email': 'user@example.com',
+    'password': 'Password123!',
+    'device': 'flutter',
+  }),
+);
+```
+
+```dart
+final token = jsonDecode(response.body)['accessToken'];
+final authHeader = {'Authorization': 'Bearer $token'};
+```
+
+---
+
+## 10. Résumé pour le client mobile
+
+- Auth = JWT + refresh token
+- JSON pour logique métier
+- Multipart pour les fichiers
+- Forme standard de paginage : `data + meta`
+- Plusieurs endpoints peuvent retourner automatiquement des objets imbriqués (`author`, `media`, `user`, etc.)
+- Les erreurs sont simples et centrées sur le champ `message`
+
+Cette fiche est pensée pour être directement transformée en modèles Dart / classes Flutter et en services HTTP.
+

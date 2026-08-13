@@ -6,6 +6,8 @@ const User = sequelize.define('User', {
   username: { type: DataTypes.STRING(50), allowNull: false, unique: true },
   email: { type: DataTypes.STRING(255), allowNull: false, unique: true },
   password_hash: { type: DataTypes.STRING(255), allowNull: false },
+  auth_provider: { type: DataTypes.ENUM('local', 'google'), defaultValue: 'local', allowNull: false },
+  google_sub: { type: DataTypes.STRING(255), allowNull: true, unique: true },
   avatar_path: { type: DataTypes.STRING(255), allowNull: true },
   bio: { type: DataTypes.TEXT, allowNull: true },
   role: { type: DataTypes.ENUM('peuple', 'constellation', 'tornades', 'tour', 'batview'), defaultValue: 'peuple' },

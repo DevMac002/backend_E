@@ -34,6 +34,33 @@ Request body:
 }
 ```
 
+#### POST /auth/google
+Authenticate a user with Google Sign-In.
+
+Request body:
+```json
+{
+  "credential": "<google_id_token>",
+  "device": "web"
+}
+```
+
+Response:
+```json
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "user": {
+    "id": 1,
+    "username": "john",
+    "email": "john@example.com",
+    "role": "peuple",
+    "status": "user",
+    "auth_provider": "google"
+  }
+}
+```
+
 #### POST /auth/send-verification-code
 Resend the email verification code.
 

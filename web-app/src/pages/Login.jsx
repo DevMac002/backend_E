@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import ToastContainer from '../components/Toast';
@@ -6,12 +6,46 @@ import { Eye, EyeOff, AlertCircle, LogIn, Heart } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !window.google?.accounts?.id) {
+      return;
+    }
+
+    const handleCredentialResponse = async (response) => {
+      try {
+        setLoading(true);
+        await loginWithGoogle(response.credential, 'web');
+        navigate('/app');
+      } catch (err) {
+        setError(err.response?.data?.message || 'Connexion Google impossible');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleCredentialResponse,
+    });
+
+    const googleButton = document.getElementById('google-signin-button');
+    if (googleButton) {
+      window.google.accounts.id.renderButton(googleButton, {
+        theme: 'outline',
+        size: 'large',
+        width: '100%',
+        text: 'continue_with',
+      });
+    }
+  }, [loginWithGoogle, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,6 +115,17 @@ export default function Login() {
             <div className="error-box" style={{ marginBottom: 24 }}>
               <AlertCircle size={18} /> {error}
             </div>
+          )}
+
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <>
+              <div id="google-signin-button" style={{ marginBottom: 20 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 20px' }}>
+                <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>ou</span>
+                <div style={{ height: 1, background: 'var(--border)', flex: 1 }} />
+              </div>
+            </>
           )}
 
           <form onSubmit={handleSubmit}>
