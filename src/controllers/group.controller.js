@@ -20,7 +20,7 @@ function canManageMembers(manager) {
 async function listGroups(req, res) {
   const { page, limit, offset } = getPaginationParams(req.query);
   const where = {};
-  if (req.query.search) where.nom = { [Op.like]: `%${req.query.search}%` };
+  if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
   const [groups, total] = await Promise.all([
     Group.findAll({ where, include: [{ model: User, attributes: ['id', 'username'] }], limit, offset }),
     Group.count({ where }),
@@ -31,7 +31,7 @@ async function listGroups(req, res) {
 async function discoverGroups(req, res) {
   const { page, limit, offset } = getPaginationParams(req.query);
   const where = {};
-  if (req.query.search) where.nom = { [Op.like]: `%${req.query.search}%` };
+  if (req.query.search) where.name = { [Op.like]: `%${req.query.search}%` };
   const [groups, total] = await Promise.all([
     Group.findAll({ where, include: [{ model: User, attributes: ['id', 'username'] }], limit, offset }),
     Group.count({ where }),
@@ -49,7 +49,7 @@ async function createGroup(req, res) {
   if (req.body.type === 'cardinal' && !['admin', 'superadmin'].includes(req.user.status)) {
     return res.status(403).json({ message: 'Seuls les admins peuvent créer des groupes cardinaux' });
   }
-  const group = await Group.create({ nom: req.body.nom, description: req.body.description, created_by: req.user.id, type: req.body.type || 'discussion' });
+  const group = await Group.create({ name: req.body.name, description: req.body.description, created_by: req.user.id, type: req.body.type || 'discussion' });
   await GroupMember.create({ group_id: group.id, user_id: req.user.id, role_in_group: 'moderateur' });
   res.status(201).json(group);
 }
@@ -59,7 +59,7 @@ async function updateGroup(req, res) {
   if (!group) return res.status(404).json({ message: 'Groupe introuvable' });
   const manager = await getGroupManager(req, group);
   if (!canManageGroupSettings(manager)) return res.status(403).json({ message: 'Seul le créateur ou un admin peut modifier ce groupe' });
-  await group.update({ nom: req.body.nom || group.nom, description: req.body.description || group.description });
+  await group.update({ name: req.body.name || group.name, description: req.body.description || group.description });
   res.json(group);
 }
 
@@ -93,9 +93,9 @@ async function addMember(req, res) {
   if (isPlatformAdmin(req.user)) {
     await ModerationLog.create({ user_id: user.id, admin_id: req.user.id, action: 'group_assigned', metadata: { group_id: group.id, role_in_group: requestedRole } });
   }
-  await Notification.create({ user_id: user.id, type: 'group_join', message: `Vous avez été ajouté au groupe ${group.nom}`, payload: { groupId: group.id } });
+  await Notification.create({ user_id: user.id, type: 'group_join', message: `Vous avez été ajouté au groupe ${group.name}`, payload: { groupId: group.id } });
   if (isRealtimeEnabled) {
-    await triggerRealtimeEvent(`private-user-${req.body.user_id}`, 'group:member_added', { groupId: group.id, groupName: group.nom });
+    await triggerRealtimeEvent(`private-user-${req.body.user_id}`, 'group:member_added', { groupId: group.id, groupName: group.name });
   }
   res.status(201).json(member);
 }

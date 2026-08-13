@@ -129,6 +129,29 @@ async function listPosts(req, res) {
   res.json(buildPaginatedResponse(posts.map((post) => postForViewer(post, req.user)), total, page, limit));
 }
 
+async function listMyPosts(req, res) {
+  const { page, limit, offset } = getPaginationParams(req.query);
+  const where = { author_id: req.user.id };
+  if (req.query.search) where.content = { [Op.like]: `%${req.query.search}%` };
+
+  const [posts, total] = await Promise.all([
+    Post.findAll({
+      where,
+      include: [
+        { model: User, attributes: ['id', 'username', 'avatar_path'] },
+        { model: Like, attributes: ['user_id'] },
+        { model: Comment, include: [{ model: User, attributes: ['id', 'username', 'avatar_path'] }] },
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset,
+    }),
+    Post.count({ where }),
+  ]);
+
+  res.json(buildPaginatedResponse(posts.map((post) => postForViewer(post, req.user)), total, page, limit));
+}
+
 async function createPost(req, res) {
   try {
     const { content, type = 'post', visible_to = 'all', options, reponse_correcte, date_limite } = req.body;
@@ -343,4 +366,4 @@ async function getQuizResults(req, res) {
   });
 }
 
-module.exports = { listPosts, listPredications, createPost, getPost, updatePost, deletePost, likePost, unlikePost, listLikes, listComments, addComment, deleteComment, voteOnPost, getPollResults, answerQuiz, getQuizResults };
+module.exports = { listPosts, listMyPosts, listPredications, createPost, getPost, updatePost, deletePost, likePost, unlikePost, listLikes, listComments, addComment, deleteComment, voteOnPost, getPollResults, answerQuiz, getQuizResults };

@@ -9,6 +9,7 @@ const router = express.Router();
 const postLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50, standardHeaders: true, legacyHeaders: false });
 
 router.get('/', authMiddleware, requireNotBanned, controller.listPosts);
+router.get('/me', authMiddleware, requireNotBanned, controller.listMyPosts);
 router.get('/predications', authMiddleware, requireNotBanned, controller.listPredications);
 router.post('/', authMiddleware, requireNotBanned, requireAccess('posts'), postLimiter, upload.single('file'), controller.createPost);
 router.get('/:id', authMiddleware, requireNotBanned, controller.getPost);
