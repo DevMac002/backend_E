@@ -1,10 +1,11 @@
 const { Message, User, Group, GroupMember, Notification, Op, sequelize } = require('../models');
+const { QueryTypes } = require('sequelize');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 
 async function listConversations(req, res) {
   const currentUserId = req.user.id;
 
-  const [rows] = await sequelize.query(`
+  const rows = await sequelize.query(`
     WITH ranked_messages AS (
       SELECT
         CASE
@@ -53,6 +54,7 @@ async function listConversations(req, res) {
     WHERE rm.rn = 1
     ORDER BY rm.created_at DESC, rm.id DESC
   `, {
+    type: QueryTypes.SELECT,
     replacements: { currentUserId },
   });
 
