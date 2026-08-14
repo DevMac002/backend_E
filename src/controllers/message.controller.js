@@ -1,13 +1,75 @@
-const { Message, User, Group, GroupMember, Notification, Op } = require('../models');
+const { Message, User, Group, GroupMember, Notification, Op, sequelize } = require('../models');
 const { triggerRealtimeEvent, isRealtimeEnabled } = require('../config/realtime');
 
 async function listConversations(req, res) {
-  const conversations = await Message.findAll({
-    where: { [Op.or]: [{ sender_id: req.user.id }, { receiver_id: req.user.id }] },
-    include: [{ model: User, as: 'receiver', attributes: ['id', 'username', 'avatar_path'] }, { model: Group, attributes: ['id', 'name'] }],
-    order: [['created_at', 'DESC']],
+  const currentUserId = req.user.id;
+
+  const [rows] = await sequelize.query(`
+    WITH ranked_messages AS (
+      SELECT
+        CASE
+          WHEN m.sender_id = :currentUserId THEN m.receiver_id
+          ELSE m.sender_id
+        END AS other_user_id,
+        m.id,
+        m.content,
+        m.created_at,
+        ROW_NUMBER() OVER (
+          PARTITION BY CASE
+            WHEN m.sender_id = :currentUserId THEN m.receiver_id
+            ELSE m.sender_id
+          END
+          ORDER BY m.created_at DESC, m.id DESC
+        ) AS rn
+      FROM messages m
+      WHERE m.group_id IS NULL
+        AND (m.sender_id = :currentUserId OR m.receiver_id = :currentUserId)
+    )
+    SELECT
+      rm.other_user_id,
+      u.username,
+      u.avatar_path,
+      rm.content AS last_message_content,
+      rm.created_at AS last_message_created_at,
+      COALESCE(unread.unread_count, 0) AS unread_count
+    FROM ranked_messages rm
+    JOIN users u ON u.id = rm.other_user_id
+    LEFT JOIN (
+      SELECT
+        CASE
+          WHEN m.sender_id = :currentUserId THEN m.receiver_id
+          ELSE m.sender_id
+        END AS other_user_id,
+        COUNT(*) AS unread_count
+      FROM messages m
+      WHERE m.group_id IS NULL
+        AND m.receiver_id = :currentUserId
+        AND m.is_read = false
+      GROUP BY CASE
+        WHEN m.sender_id = :currentUserId THEN m.receiver_id
+        ELSE m.sender_id
+      END
+    ) AS unread ON unread.other_user_id = rm.other_user_id
+    WHERE rm.rn = 1
+    ORDER BY rm.created_at DESC, rm.id DESC
+  `, {
+    replacements: { currentUserId },
   });
-  res.json(conversations);
+
+  const conversations = rows.map((row) => ({
+    user: {
+      id: Number(row.other_user_id),
+      username: row.username,
+      avatar_path: row.avatar_path,
+    },
+    lastMessage: {
+      content: row.last_message_content,
+      created_at: row.last_message_created_at,
+    },
+    unreadCount: Number(row.unread_count || 0),
+  }));
+
+  res.json({ conversations });
 }
 
 async function listMessages(req, res) {
