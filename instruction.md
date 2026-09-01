@@ -896,4 +896,3 @@ final authHeader = {'Authorization': 'Bearer $token'};
 - Les erreurs sont simples et centrées sur le champ `message`
 
 Cette fiche est pensée pour être directement transformée en modèles Dart / classes Flutter et en services HTTP.
-
