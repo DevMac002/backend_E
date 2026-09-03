@@ -26,24 +26,27 @@ Set these values in Render:
 ```env
 NODE_ENV=production
 DB_HOST=...
-DB_PORT=3306
+DB_PORT=4008
 DB_NAME=...
 DB_USER=...
 DB_PASSWORD=...
 DB_DIALECT=mariadb
 DB_SSL=false
+DB_ALLOW_LOCAL_FALLBACK=false
 JWT_SECRET=replace_with_a_long_random_secret
 JWT_REFRESH_SECRET=replace_with_another_long_random_secret
 ```
 
-If your MariaDB provider requires TLS, set:
+SkySQL must use TLS with server certificate verification:
 
 ```env
 DB_SSL=true
-DB_SSL_REJECT_UNAUTHORIZED=false
 ```
 
-Only use `DB_SSL_REJECT_UNAUTHORIZED=false` when your provider requires it.
+Render does not provide a MariaDB server on `127.0.0.1`. The backend will try
+the local fallback after a Cloud failure, but it can only succeed when MariaDB
+is running on the same machine as the backend. On Render, make sure SkySQL
+allows connections from Render and that `DB_NAME=epika_social` exists.
 
 ## Email variables
 

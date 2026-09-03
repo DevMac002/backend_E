@@ -1,5 +1,4 @@
 const bcrypt = require('bcrypt');
-const mariadb = require('mariadb');
 const { Sequelize } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
@@ -39,7 +38,7 @@ const remoteConfig = {
     process.env.DB_PORT ||
     process.env.MYSQLPORT ||
     parsedDatabaseUrl?.port ||
-    3306
+    4008
   ),
 
   database:
@@ -112,13 +111,12 @@ let connectPromise = null;
 
 function getSslOptions(config) {
   if (!config.ssl) {
-    return {};
+    return { ssl: false };
   }
 
   return {
     ssl: {
-      rejectUnauthorized:
-        process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+      rejectUnauthorized: true,
       require: true,
     },
   };
@@ -141,7 +139,7 @@ function createSequelizeInstance(config) {
       host: config.host,
       port: config.port,
 
-      dialect: process.env.DB_DIALECT || 'mariadb',
+      dialect: config.dialect || 'mariadb',
 
       logging: false,
 
@@ -171,8 +169,7 @@ function createSequelizeInstance(config) {
 // =====================================================
 
 async function testDatabase(config, name) {
-  let pool = null;
-  let connection = null;
+  let testSequelize = null;
 
   try {
     console.log(
@@ -189,27 +186,12 @@ async function testDatabase(config, name) {
       );
     }
 
-    pool = mariadb.createPool({
-      host: config.host,
-      port: Number(config.port),
-      user: config.user,
-      password: config.password,
-      database: config.database,
+    if (name === 'CLOUD' && !config.ssl) {
+      throw new Error('Configuration Cloud invalide: DB_SSL=true est obligatoire');
+    }
 
-      connectTimeout: name === 'LOCALE'
-        ? 5000
-        : 10000,
-
-      socketTimeout: name === 'LOCALE'
-        ? 5000
-        : 10000,
-
-      ...getSslOptions(config),
-    });
-
-    connection = await pool.getConnection();
-
-    await connection.query('SELECT 1');
+    testSequelize = createSequelizeInstance(config);
+    await testSequelize.authenticate();
 
     console.log(`✅ Base ${name} disponible.`);
 
@@ -218,6 +200,7 @@ async function testDatabase(config, name) {
   } catch (error) {
 
     console.error(`❌ Base ${name} indisponible:`);
+    console.error(`   type=${getDatabaseErrorType(error)}`);
     console.error(`   code=${error.code || 'N/A'}`);
     console.error(`   errno=${error.errno || 'N/A'}`);
     console.error(`   sqlState=${error.sqlState || 'N/A'}`);
@@ -227,18 +210,22 @@ async function testDatabase(config, name) {
 
   } finally {
 
-    if (connection) {
+    if (testSequelize) {
       try {
-        connection.release();
-      } catch (_) {}
-    }
-
-    if (pool) {
-      try {
-        await pool.end();
+        await testSequelize.close();
       } catch (_) {}
     }
   }
+}
+
+function getDatabaseErrorType(error) {
+  const message = String(error.message || '').toLowerCase();
+  if (['ENOTFOUND', 'EAI_AGAIN', 'getaddrinfo'].some((value) => message.includes(value))) return 'DNS_ERROR';
+  if (['timeout', 'timed out', '45026', '45028'].some((value) => message.includes(value))) return 'CONNECTION_TIMEOUT';
+  if (['certificate', 'tls', 'ssl'].some((value) => message.includes(value))) return 'TLS_ERROR';
+  if (['access denied', 'authentication'].some((value) => message.includes(value))) return 'AUTHENTICATION_ERROR';
+  if (['unknown database', 'bad db'].some((value) => message.includes(value))) return 'DATABASE_NOT_FOUND';
+  return 'MARIADB_CONNECTION_ERROR';
 }
 
 // =====================================================

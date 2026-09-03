@@ -2,10 +2,11 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const { connectDB, sequelize } = require('../src/config/database');
+const database = require('../src/config/database');
 
 async function run() {
-  await connectDB();
+  await database.connectDB();
+  const sequelize = database.sequelize;
   const migrationsDir = path.join(__dirname, '../database/migrations');
   const migrationFiles = fs.readdirSync(migrationsDir).filter((file) => file.endsWith('.sql')).sort();
   for (const file of migrationFiles) {
