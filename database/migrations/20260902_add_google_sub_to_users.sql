@@ -1,0 +1,6 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) NULL,
+  ADD UNIQUE INDEX IF NOT EXISTS users_google_sub_unique (google_sub);
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS device VARCHAR(100) NOT NULL DEFAULT 'unknown';

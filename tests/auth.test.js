@@ -3,7 +3,7 @@ const request = require('supertest');
 
 jest.mock('../src/middlewares/auth.middleware', () => {
   return (req, _res, next) => {
-    req.user = { id: 1, username: 'alice', status: 'user', role: 'peuple' };
+    req.user = { id: 1, username: 'alice', status: 'admin', role: 'peuple' };
     next();
   };
 });
@@ -60,7 +60,7 @@ jest.mock('../src/controllers/post.controller', () => ({
 }));
 
 describe('User listing', () => {
-  it('allows any authenticated user to access the user list', async () => {
+  it('allows an admin to access the user list', async () => {
     const app = express();
     app.use('/users', userRoutes);
 
